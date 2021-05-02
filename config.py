@@ -172,14 +172,14 @@ fill_SE_config(_C.MODEL.MoViNetA2.blocks[0][1], 16, 16, 40, (3,3,3), (1,1,1), (0
 fill_SE_config(_C.MODEL.MoViNetA2.blocks[0][2], 16, 16, 64, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
 
 #block 3
-fill_SE_config(_C.MODEL.MoViNetA2.blocks[1][0], 16, 40, 96, (3,3,3), (1,2,2), (0,1,1), (0,0,0))
+fill_SE_config(_C.MODEL.MoViNetA2.blocks[1][0], 16, 40, 96, (3,3,3), (1,2,2), (0,1,1), (0,1,1))
 fill_SE_config(_C.MODEL.MoViNetA2.blocks[1][1], 40, 40, 120, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
 fill_SE_config(_C.MODEL.MoViNetA2.blocks[1][2], 40, 40, 96, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
 fill_SE_config(_C.MODEL.MoViNetA2.blocks[1][3], 40, 40, 96, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
 fill_SE_config(_C.MODEL.MoViNetA2.blocks[1][4], 40, 40, 120, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
 
 #block 4
-fill_SE_config(_C.MODEL.MoViNetA2.blocks[2][0], 40, 72, 240, (5,3,3), (1,2,2), (0,1,1), (0,0,0))
+fill_SE_config(_C.MODEL.MoViNetA2.blocks[2][0], 40, 72, 240, (5,3,3), (1,2,2), (0,1,1), (0,1,1))
 fill_SE_config(_C.MODEL.MoViNetA2.blocks[2][1], 72, 72, 160, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
 fill_SE_config(_C.MODEL.MoViNetA2.blocks[2][2], 72, 72, 240, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
 fill_SE_config(_C.MODEL.MoViNetA2.blocks[2][3], 72, 72, 192, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
