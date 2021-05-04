@@ -207,3 +207,68 @@ fill_conv(_C.MODEL.MoViNetA2.conv7, 144,640,(1,1,1),(1,1,1),(0,0,0))
 
 _C.MODEL.MoViNetA2.dense9= CN()
 _C.MODEL.MoViNetA2.dense9.hidden_dim = 2048
+
+
+###################
+#### MoViNetA3 ####
+###################
+
+_C.MODEL.MoViNetA3 = CN()
+_C.MODEL.MoViNetA3.conv1 = CN()
+fill_conv(_C.MODEL.MoViNetA3.conv1, 3,16,(1,3,3),(1,2,2),(0,1,1))
+
+
+_C.MODEL.MoViNetA3.blocks = [ [CN(),CN(),CN(),CN()],
+        [CN(), CN(), CN(),CN(),CN(), CN() ],
+        [CN(), CN(), CN(),CN(),CN()],
+        [CN(), CN(), CN(), CN(),CN(),CN(), CN(), CN()],
+        [CN(), CN(), CN(), CN(),CN(),CN(),CN(), CN(), CN(), CN()]]
+
+#Block2
+fill_SE_config(_C.MODEL.MoViNetA3.blocks[0][0], 16, 16, 40, (1,5,5), (1,2,2), (0,2,2), (0,1,1))
+fill_SE_config(_C.MODEL.MoViNetA3.blocks[0][1], 16, 16, 40, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
+fill_SE_config(_C.MODEL.MoViNetA3.blocks[0][2], 16, 16, 64, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
+fill_SE_config(_C.MODEL.MoViNetA3.blocks[0][3], 16, 16, 40, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
+
+#block 3
+fill_SE_config(_C.MODEL.MoViNetA3.blocks[1][0], 16, 48, 112, (3,3,3), (1,2,2), (0,1,1), (0,1,1))
+fill_SE_config(_C.MODEL.MoViNetA3.blocks[1][1], 48, 48, 144, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
+fill_SE_config(_C.MODEL.MoViNetA3.blocks[1][2], 48, 48, 112, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
+fill_SE_config(_C.MODEL.MoViNetA3.blocks[1][3], 48, 48, 112, (1,5,5), (1,1,1), (0,2,2), (0,1,1))
+fill_SE_config(_C.MODEL.MoViNetA3.blocks[1][4], 48, 48, 144, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
+fill_SE_config(_C.MODEL.MoViNetA3.blocks[1][5], 48, 48, 144, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
+
+#block 4
+fill_SE_config(_C.MODEL.MoViNetA3.blocks[2][0], 48, 80, 240, (5,3,3), (1,2,2), (0,1,1), (0,1,1))
+fill_SE_config(_C.MODEL.MoViNetA3.blocks[2][1], 80, 80, 152, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
+fill_SE_config(_C.MODEL.MoViNetA3.blocks[2][2], 80, 80, 240, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
+fill_SE_config(_C.MODEL.MoViNetA3.blocks[2][3], 80, 80, 192, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
+fill_SE_config(_C.MODEL.MoViNetA3.blocks[2][4], 80, 80, 240, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
+
+#block 5
+fill_SE_config(_C.MODEL.MoViNetA3.blocks[3][0], 80, 88, 264, (5,3,3), (1,1,1), (0,1,1), (0,1,1))
+fill_SE_config(_C.MODEL.MoViNetA3.blocks[3][1], 88, 88, 264, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
+fill_SE_config(_C.MODEL.MoViNetA3.blocks[3][2], 88, 88, 264, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
+fill_SE_config(_C.MODEL.MoViNetA3.blocks[3][3], 88, 88, 264, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
+fill_SE_config(_C.MODEL.MoViNetA3.blocks[3][4], 88, 88, 160, (1,5,5), (1,1,1), (0,2,2), (0,1,1))
+fill_SE_config(_C.MODEL.MoViNetA3.blocks[3][5], 88, 88, 264, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
+fill_SE_config(_C.MODEL.MoViNetA3.blocks[3][6], 88, 88, 264, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
+fill_SE_config(_C.MODEL.MoViNetA3.blocks[3][7], 88, 88, 264, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
+
+#block 6
+fill_SE_config(_C.MODEL.MoViNetA3.blocks[4][0], 88 , 168, 560, (5,3,3), (1,2,2), (0,1,1), (0,1,1))
+fill_SE_config(_C.MODEL.MoViNetA3.blocks[4][1], 168, 168, 448, (1,5,5), (1,1,1), (0,2,2), (0,1,1))
+fill_SE_config(_C.MODEL.MoViNetA3.blocks[4][2], 168, 168, 448, (1,5,5), (1,1,1), (0,2,2), (0,1,1))
+fill_SE_config(_C.MODEL.MoViNetA3.blocks[4][3], 168, 168, 560, (1,5,5), (1,1,1), (0,2,2), (0,1,1))
+fill_SE_config(_C.MODEL.MoViNetA3.blocks[4][4], 168, 168, 560, (1,5,5), (1,1,1), (0,2,2), (0,1,1))
+fill_SE_config(_C.MODEL.MoViNetA3.blocks[4][5], 168, 168, 560, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
+fill_SE_config(_C.MODEL.MoViNetA3.blocks[4][6], 168, 168, 448, (1,5,5), (1,1,1), (0,2,2), (0,1,1))
+fill_SE_config(_C.MODEL.MoViNetA3.blocks[4][7], 168, 168, 448, (1,5,5), (1,1,1), (0,2,2), (0,1,1))
+fill_SE_config(_C.MODEL.MoViNetA3.blocks[4][8], 168, 168, 560, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
+fill_SE_config(_C.MODEL.MoViNetA3.blocks[4][9], 168, 168, 672, (1,3,3), (1,1,1), (0,1,1), (0,1,1))
+
+_C.MODEL.MoViNetA3.conv7= CN()
+fill_conv(_C.MODEL.MoViNetA3.conv7, 168,744,(1,1,1),(1,1,1),(0,0,0))
+
+_C.MODEL.MoViNetA3.dense9= CN()
+_C.MODEL.MoViNetA3.dense9.hidden_dim = 2048
