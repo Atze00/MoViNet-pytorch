@@ -56,21 +56,21 @@ fill_conv(_C.MODEL.MoViNetA0.conv1, 3,8,(1,3,3),(1,2,2),(0,1,1))
 
 
 _C.MODEL.MoViNetA0.blocks = [ [CN()],
-        [CN(), CN(), CN()],
-        [CN(), CN(), CN()],
-        [CN(), CN(), CN(), CN()],
-        [CN(), CN(), CN(), CN()]]#TODO fix
+                            [CN() for _ in range(3)],
+                            [CN() for _ in range(3)],
+                            [CN() for _ in range(4)],
+                            [CN() for _ in range(4)]]
 
 #Block2
 fill_SE_config(_C.MODEL.MoViNetA0.blocks[0][0], 8, 8, 40, (1,5,5), (1,2,2), (0,2,2), (0,1,1))
 
 #block 3
-fill_SE_config(_C.MODEL.MoViNetA0.blocks[1][0], 8, 32, 80, (5,3,3), (1,2,2), (0,1,1), (0,0,0))
+fill_SE_config(_C.MODEL.MoViNetA0.blocks[1][0], 8, 32, 80, (5,3,3), (1,2,2), (0,0,0), (0,0,0))
 fill_SE_config(_C.MODEL.MoViNetA0.blocks[1][1], 32, 32, 80, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
 fill_SE_config(_C.MODEL.MoViNetA0.blocks[1][2], 32, 32, 80, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
 
 #block 4
-fill_SE_config(_C.MODEL.MoViNetA0.blocks[2][0], 32, 56, 184, (5,3,3), (1,2,2), (0,1,1), (0,0,0))
+fill_SE_config(_C.MODEL.MoViNetA0.blocks[2][0], 32, 56, 184, (5,3,3), (1,2,2), (0,0,0), (0,0,0))
 fill_SE_config(_C.MODEL.MoViNetA0.blocks[2][1], 56, 56, 112, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
 fill_SE_config(_C.MODEL.MoViNetA0.blocks[2][2], 56, 56, 184, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
 
@@ -115,13 +115,13 @@ fill_SE_config(_C.MODEL.MoViNetA1.blocks[0][0], 16, 16, 40, (1,5,5), (1,2,2), (0
 fill_SE_config(_C.MODEL.MoViNetA1.blocks[0][1], 16, 16, 40, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
 
 #block 3
-fill_SE_config(_C.MODEL.MoViNetA1.blocks[1][0], 16, 40, 96, (3,3,3), (1,2,2), (0,1,1), (0,0,0))
+fill_SE_config(_C.MODEL.MoViNetA1.blocks[1][0], 16, 40, 96, (3,3,3), (1,2,2), (0,0,0), (0,0,0))
 fill_SE_config(_C.MODEL.MoViNetA1.blocks[1][1], 40, 40, 120, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
 fill_SE_config(_C.MODEL.MoViNetA1.blocks[1][2], 40, 40, 96, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
 fill_SE_config(_C.MODEL.MoViNetA1.blocks[1][3], 40, 40, 96, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
 
 #block 4
-fill_SE_config(_C.MODEL.MoViNetA1.blocks[2][0], 40, 64, 216, (5,3,3), (1,2,2), (0,1,1), (0,0,0))
+fill_SE_config(_C.MODEL.MoViNetA1.blocks[2][0], 40, 64, 216, (5,3,3), (1,2,2), (0,0,0), (0,0,0))
 fill_SE_config(_C.MODEL.MoViNetA1.blocks[2][1], 64, 64, 128, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
 fill_SE_config(_C.MODEL.MoViNetA1.blocks[2][2], 64, 64, 216, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
 fill_SE_config(_C.MODEL.MoViNetA1.blocks[2][3], 64, 64, 168, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
@@ -290,7 +290,7 @@ _C.MODEL.MoViNetA4.blocks = [ [CN() for _ in range(6)],
                               [CN() for _ in range(13)]]
 
 #Block2
-fill_SE_config(_C.MODEL.MoViNetA4.blocks[0][0], 24, 24, 64, (1,5,5), (1,2,2), (0,2,2), (0,0,0))
+fill_SE_config(_C.MODEL.MoViNetA4.blocks[0][0], 24, 24, 64, (1,5,5), (1,2,2), (0,1,1), (0,0,0))
 fill_SE_config(_C.MODEL.MoViNetA4.blocks[0][1], 24, 24, 64, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
 fill_SE_config(_C.MODEL.MoViNetA4.blocks[0][2], 24, 24, 96, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
 fill_SE_config(_C.MODEL.MoViNetA4.blocks[0][3], 24, 24, 64, (3,3,3), (1,1,1), (0,1,1), (0,1,1))

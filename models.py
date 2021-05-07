@@ -3,6 +3,7 @@ Code inspired by:
 https://pytorch.org/vision/stable/_modules/torchvision/models/mobilenetv2.html
 https://pytorch.org/vision/stable/_modules/torchvision/models/mobilenetv3.html
 """
+from collections import OrderedDict
 import torch
 import torch.nn.functional as F
 from typing import Any, Callable, Dict, List, Optional, Sequence,Tuple
@@ -27,12 +28,13 @@ class TemporalCGAvgPool3D(CausalModule):
     def forward(self, x: Tensor):
         self.T += x.shape[2]
         if self.activation is None:
-            self.activation = torch.sum(x,dim =2)
+            self.activation = torch.sum(x,dim =2,keepdim=True)
         else:
-            self.activation += torch.sum(x,dim =2)
+            self.activation += torch.sum(x,dim =2,keepdim=True)
 
         x = self.activation/self.T
         return x
+
     @staticmethod
     def _detach_activation(module : nn.Module,input: Tensor,output: Tensor) -> None:
         module.activation.detach_()
@@ -81,9 +83,9 @@ class SqueezeExcitation(nn.Module):
     def __init__(self, input_channels: int, squeeze_factor: int = 4):
         super().__init__()
         squeeze_channels = _make_divisible(input_channels//squeeze_factor,8)
-        self.fc1 = CausalConv(input_channels, squeeze_channels, (1,1,1))
+        self.fc1 = nn.Conv3d(input_channels, squeeze_channels, (1,1,1))
         self.relu = nn.ReLU(inplace=True)
-        self.fc2 = CausalConv(squeeze_channels, input_channels, (1,1,1))
+        self.fc2 = nn.Conv3d(squeeze_channels, input_channels, (1,1,1))
 
     def _scale(self, input: Tensor, inplace: bool) -> Tensor:
         scale = F.adaptive_avg_pool3d(input, 1)
@@ -117,6 +119,7 @@ class ConvBNActivation(nn.Sequential):
         in_planes: int,
         out_planes: int,
         *,
+        causal: bool,
         kernel_size: Tuple,
         padding : Tuple,
         stride: int = 1,
@@ -124,19 +127,25 @@ class ConvBNActivation(nn.Sequential):
         norm_layer: Optional[Callable[..., nn.Module]] = None,
         activation_layer: Optional[Callable[..., nn.Module]] = None,
     ) -> None:
+        if causal:
+            convolution = CausalConv
+        else:
+            assert kernel_size[0]%2 !=0, "you should use odd kernels"
+            padding = ((kernel_size[0]-1)//2,padding[1],padding[2])
+            convolution = nn.Conv3d
         if norm_layer is None:
             norm_layer = nn.BatchNorm3d
         if activation_layer is None:
             activation_layer = nn.Hardswish
         super(ConvBNActivation, self).__init__(
-            CausalConv(in_planes, out_planes, 
+                OrderedDict({"conv3d": convolution(in_planes, out_planes, 
                       kernel_size = kernel_size, 
                       stride = stride, 
                       padding = padding, 
                       groups=groups,
                       bias=False),
-            norm_layer(out_planes),
-            activation_layer(inplace=True)
+                            "norm": norm_layer(out_planes),
+                            "act": activation_layer(inplace=True)})
         )
         self.out_channels = out_planes
         
@@ -144,79 +153,84 @@ class ConvBNActivation(nn.Sequential):
 
 
 class BasicBneck(nn.Module):
-    def __init__(self, cfg : "CfgNode") -> None:
+    def __init__(self, cfg : "CfgNode",causal: bool) -> None:
         super().__init__()
         assert type(cfg.stride) is tuple
-        layers_first = []
+        self.res = None
         layers = []
-        self.block_first = None
-        if not (cfg.stride == (1,1,1) and cfg.input_channels == cfg.out_channels):
-            """From the paper is not clar to how this part is contructed.
-                "We also apply skip connections that are traditionally used in ResNets, adding a 1x1x1 convolution in the first 
-                layer of each block which may change the base channels or downsample the input. However, we modify this to be 
-                similar to ResNet-D where we apply 1x3x3 spatial average pooling before the convolution to improve feature 
-                reppresentation"
-            """ 
-            layers_first.append(nn.AvgPool3d((1,3,3), stride = cfg.stride,padding = cfg.padding_avg))
-            layers_first.append(ConvBNActivation(
-                    in_planes = cfg.input_channels,
-                    out_planes = cfg.out_channels,
-                    kernel_size = (1,1,1),
-                    padding = (0,0,0),
-                    norm_layer= cfg.norm_layer,
-                    activation_layer = cfg.activation_layer
-                    ))
-            self.block_first = nn.Sequential(*layers_first)
-
         if cfg.expanded_channels != cfg.out_channels:
             #expand
-            layers.append(ConvBNActivation(
-                in_planes = cfg.out_channels,
+            self.expand = ConvBNActivation(
+                in_planes = cfg.input_channels,
                 out_planes = cfg.expanded_channels,
                 kernel_size = (1,1,1),
                 padding = (0,0,0),
                 norm_layer= cfg.norm_layer,
-                activation_layer = cfg.activation_layer
-                ))
+                activation_layer = cfg.activation_layer,
+                causal = causal
+                )
         #deepwise 
-        layers.append(ConvBNActivation(
+        self.deep = ConvBNActivation(
             in_planes = cfg.expanded_channels,
             out_planes = cfg.expanded_channels,
             kernel_size = cfg.kernel_size,
-            padding = cfg.padding,
-            stride= (1,1,1),
+            padding =cfg.padding,
+            stride= cfg.stride,
             norm_layer= cfg.norm_layer,
             groups = cfg.expanded_channels,
-            activation_layer = cfg.activation_layer
-            ))
+            activation_layer = cfg.activation_layer,
+            causal = causal
+            )
         #SE
-        layers.append(SqueezeExcitation(cfg.expanded_channels))
+        self.se = SqueezeExcitation(cfg.expanded_channels)
         #project
-        layers.append(ConvBNActivation(
+        self.project = ConvBNActivation(
             cfg.expanded_channels,
             cfg.out_channels,
             kernel_size = (1,1,1),
             padding = (0,0,0),
             norm_layer = cfg.norm_layer,
-            activation_layer = nn.Identity
-            ))
-        self.block = nn.Sequential(*layers)
+            activation_layer = nn.Identity,
+            causal = causal
+            )
+
+        if not (cfg.stride == (1,1,1) and cfg.input_channels == cfg.out_channels):
+            layers.append(nn.AvgPool3d((1,3,3), stride = cfg.stride,padding = cfg.padding_avg))
+            layers.append(ConvBNActivation(
+                    in_planes = cfg.input_channels,
+                    out_planes = cfg.out_channels,
+                    kernel_size = (1,1,1),
+                    padding = (0,0,0),
+                    norm_layer= cfg.norm_layer,
+                    activation_layer = cfg.activation_layer,
+                    causal = causal
+                    ))
+            self.res = nn.Sequential(*layers)
         #ReZero
         self.alpha = nn.Parameter(torch.tensor(0.0), requires_grad=True)
-        self.out_channels = cfg.out_channels
     def forward(self, input: Tensor) -> Tensor:
-        if self.block_first is not None:
-            input = self.block_first(input)
-        result = self.block(input)
+        result = input
+        if self.res is not None:
+            input = self.res(input)
+        if self.expand is not None:
+            result = self.expand(result)
+        result = self.deep(result)
+        result = self.se(result)
+        result = self.project(result)
+
+        
         result = input + self.alpha *result
         return result
+
+
 
 class MoViNet(nn.Module):
     def __init__(self, 
             cfg : "CfgNode",
-            num_classes : int) -> None:
+            num_classes : int,
+            causal: bool = True) -> None:
         super().__init__()
-        layers = []
+        blocks_dic = OrderedDict()
         #conv1
         self.conv1 = ConvBNActivation(
             in_planes = cfg.conv1.input_channels,
@@ -225,13 +239,14 @@ class MoViNet(nn.Module):
             stride = cfg.conv1.stride,
             norm_layer= cfg.conv1.norm_layer,
             padding = cfg.conv1.padding,
-            activation_layer = cfg.conv1.activation_layer
+            activation_layer = cfg.conv1.activation_layer,
+            causal = causal
             )
         #blocks
-        for block in cfg.blocks:
-            for basicblock in block:
-                layers.append(BasicBneck(basicblock))
-        self.blocks = nn.Sequential(*layers)
+        for i,block in enumerate(cfg.blocks):
+            for j,basicblock in enumerate(block):
+                blocks_dic[f"b{i}_l{j}"] = BasicBneck(basicblock,causal = causal)
+        self.blocks = nn.Sequential(blocks_dic)
         #conv7
         self.conv7 = ConvBNActivation(
             in_planes = cfg.conv7.input_channels,
@@ -240,40 +255,51 @@ class MoViNet(nn.Module):
             stride = cfg.conv7.stride,
             padding = cfg.conv7.padding,
             norm_layer= cfg.conv7.norm_layer,
-            activation_layer = cfg.conv7.activation_layer
+            activation_layer = cfg.conv7.activation_layer,
+            causal = causal
             )
         #pool
         self.classifier = nn.Sequential(
             #dense9
-            nn.Linear(cfg.conv7.out_channels, cfg.dense9.hidden_dim),
+            nn.Conv3d(cfg.conv7.out_channels,  cfg.dense9.hidden_dim, (1,1,1)),
             nn.Hardswish(inplace=True),
             nn.Dropout(p=0.2, inplace=True),
             #dense10
-            nn.Linear(cfg.dense9.hidden_dim, num_classes),
+            nn.Conv3d(cfg.dense9.hidden_dim,  num_classes, (1,1,1)),
         )
-        self.cgap= TemporalCGAvgPool3D()
+        if causal:
+            self.cgap= TemporalCGAvgPool3D()
+        self.apply(self._weight_init)
+        self.causal = causal
 
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_out')
-                if m.bias is not None:
-                    nn.init.zeros_(m.bias)
-            elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
-                nn.init.ones_(m.weight)
+    def avg(self,x):
+        if self.causal:
+            avg = F.adaptive_avg_pool3d(x, (x.shape[2],1,1))
+            avg = self.cgap(avg)
+        else:
+            avg = F.adaptive_avg_pool3d(x, 1)
+        return avg
+
+    @staticmethod
+    def _weight_init(m):
+        if isinstance(m, nn.Conv3d):
+            nn.init.kaiming_normal_(m.weight, mode='fan_out')
+            if m.bias is not None:
                 nn.init.zeros_(m.bias)
-            elif isinstance(m, nn.Linear):
-                nn.init.normal_(m.weight, 0, 0.01)
-                nn.init.zeros_(m.bias)
+        elif isinstance(m, (nn.BatchNorm3d, nn.GroupNorm)):
+            nn.init.ones_(m.weight)
+            nn.init.zeros_(m.bias)
+        elif isinstance(m, nn.Linear):
+            nn.init.normal_(m.weight, 0, 0.01)
+            nn.init.zeros_(m.bias)
 
     def _forward_impl(self, x: Tensor) -> Tensor:
         x = self.conv1(x)
         x = self.blocks(x)
         x = self.conv7(x)
-        x = F.adaptive_avg_pool3d(x, (x.shape[2],1,1))
-        x = self.cgap(x)
-        x = torch.flatten(x, 1)
-
+        x = self.avg(x)
         x = self.classifier(x)
+        x = x.flatten(1)
 
         return x
 
