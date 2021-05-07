@@ -73,7 +73,7 @@ class CausalConv(CausalModule):
 
     def _save_in_activation(self, x: Tensor) -> Tensor:
         assert self.dim_pad > 0
-        self.activation = x[:, :, -self.dim_pad:, ...].clone().detach().cpu()
+        self.activation = x[:, :, -self.dim_pad:, ...].clone().detach()
 
     def _setup_activation(self, input_shape: Tuple[float, ...]) -> None:
         assert self.dim_pad > 0
