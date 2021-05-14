@@ -314,7 +314,6 @@ class MoViNet(nn.Module):
                  ) -> None:
         super().__init__()
         if pretrained:
-            assert cfg.name == "A2", "only A2 is available pretrained"
             assert cfg.causal == False, "weights are only available for non causal models"
             assert tf_like, "pretained model available only with tf_like behavior"
 

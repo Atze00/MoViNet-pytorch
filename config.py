@@ -52,6 +52,7 @@ _C.MODEL = CN()
 
 _C.MODEL.MoViNetA0 = CN()
 _C.MODEL.MoViNetA0.name = "A0"
+_C.MODEL.MoViNetA0.weights = "https://github.com/Atze00/MoViNet-pytorch/blob/main/weight/modelA0_statedict?raw=true"
 _C.MODEL.MoViNetA0.conv1 = CN()
 fill_conv(_C.MODEL.MoViNetA0.conv1, 3,8,(1,3,3),(1,2,2),(0,1,1))
 
@@ -63,10 +64,10 @@ _C.MODEL.MoViNetA0.blocks = [ [CN()],
                             [CN() for _ in range(4)]]
 
 #Block2
-fill_SE_config(_C.MODEL.MoViNetA0.blocks[0][0], 8, 8, 40, (1,5,5), (1,2,2), (0,2,2), (0,1,1))
+fill_SE_config(_C.MODEL.MoViNetA0.blocks[0][0], 8, 8, 24, (1,5,5), (1,2,2), (0,2,2), (0,1,1))
 
 #block 3
-fill_SE_config(_C.MODEL.MoViNetA0.blocks[1][0], 8, 32, 80, (5,3,3), (1,2,2), (0,0,0), (0,0,0))
+fill_SE_config(_C.MODEL.MoViNetA0.blocks[1][0], 8, 32, 80, (3,3,3), (1,2,2), (0,0,0), (0,0,0))
 fill_SE_config(_C.MODEL.MoViNetA0.blocks[1][1], 32, 32, 80, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
 fill_SE_config(_C.MODEL.MoViNetA0.blocks[1][2], 32, 32, 80, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
 
@@ -82,7 +83,7 @@ fill_SE_config(_C.MODEL.MoViNetA0.blocks[3][2], 56, 56, 184, (3,3,3), (1,1,1), (
 fill_SE_config(_C.MODEL.MoViNetA0.blocks[3][3], 56, 56, 184, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
 
 #block 6
-fill_SE_config(_C.MODEL.MoViNetA0.blocks[4][0], 56, 104, 344, (5,3,3), (1,2,2), (0,1,1), (0,1,1))
+fill_SE_config(_C.MODEL.MoViNetA0.blocks[4][0], 56, 104, 384, (5,3,3), (1,2,2), (0,1,1), (0,1,1))
 fill_SE_config(_C.MODEL.MoViNetA0.blocks[4][1], 104, 104, 280, (1,5,5), (1,1,1), (0,2,2), (0,1,1))
 fill_SE_config(_C.MODEL.MoViNetA0.blocks[4][2], 104, 104, 280, (1,5,5), (1,1,1), (0,2,2), (0,1,1))
 fill_SE_config(_C.MODEL.MoViNetA0.blocks[4][3], 104, 104, 344, (1,5,5), (1,1,1), (0,2,2), (0,1,1))
@@ -101,6 +102,7 @@ _C.MODEL.MoViNetA0.dense9.hidden_dim = 2048
 
 _C.MODEL.MoViNetA1 = CN()
 _C.MODEL.MoViNetA1.name = "A1"
+_C.MODEL.MoViNetA1.weights = "https://github.com/Atze00/MoViNet-pytorch/blob/main/weight/modelA1_statedict?raw=true"
 _C.MODEL.MoViNetA1.conv1 = CN()
 fill_conv(_C.MODEL.MoViNetA1.conv1, 3, 16,(1,3,3),(1,2,2),(0,1,1))
 
@@ -161,7 +163,6 @@ _C.MODEL.MoViNetA1.dense9.hidden_dim = 2048
 _C.MODEL.MoViNetA2 = CN()
 _C.MODEL.MoViNetA2.name = "A2"
 _C.MODEL.MoViNetA2.weights = "https://github.com/Atze00/MoViNet-pytorch/blob/main/weight/modelA2_statedict?raw=true"
-_C.MODEL.MoViNetA2.weights_name = "modelA2_statedict"
 
 
 _C.MODEL.MoViNetA2.conv1 = CN()
@@ -223,6 +224,7 @@ _C.MODEL.MoViNetA2.dense9.hidden_dim = 2048
 
 _C.MODEL.MoViNetA3 = CN()
 _C.MODEL.MoViNetA3.name = "A3"
+_C.MODEL.MoViNetA3.weights = "https://github.com/Atze00/MoViNet-pytorch/blob/main/weight/modelA3_statedict?raw=true"
 _C.MODEL.MoViNetA3.conv1 = CN()
 fill_conv(_C.MODEL.MoViNetA3.conv1, 3,16,(1,3,3),(1,2,2),(0,1,1))
 
@@ -288,6 +290,7 @@ _C.MODEL.MoViNetA3.dense9.hidden_dim = 2048
 
 _C.MODEL.MoViNetA4 = CN()
 _C.MODEL.MoViNetA4.name = "A4"
+_C.MODEL.MoViNetA4.weights = "https://github.com/Atze00/MoViNet-pytorch/blob/main/weight/modelA4_statedict?raw=true"
 _C.MODEL.MoViNetA4.conv1 = CN()
 fill_conv(_C.MODEL.MoViNetA4.conv1, 3,24,(1,3,3),(1,2,2),(0,1,1))
 
@@ -307,7 +310,7 @@ fill_SE_config(_C.MODEL.MoViNetA4.blocks[0][4], 24, 24, 96, (3,3,3), (1,1,1), (0
 fill_SE_config(_C.MODEL.MoViNetA4.blocks[0][5], 24, 24, 64, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
 
 #block 3
-fill_SE_config(_C.MODEL.MoViNetA4.blocks[1][0], 24, 56, 168, (5,3,3), (1,2,2), (0,1,1), (0,1,1))
+fill_SE_config(_C.MODEL.MoViNetA4.blocks[1][0], 24, 56, 168, (3,3,3), (1,2,2), (0,1,1), (0,1,1))
 fill_SE_config(_C.MODEL.MoViNetA4.blocks[1][1], 56, 56, 168, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
 fill_SE_config(_C.MODEL.MoViNetA4.blocks[1][2], 56, 56, 136, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
 fill_SE_config(_C.MODEL.MoViNetA4.blocks[1][3], 56, 56, 136, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
@@ -323,7 +326,7 @@ fill_SE_config(_C.MODEL.MoViNetA4.blocks[2][1], 96, 96, 160, (3,3,3), (1,1,1), (
 fill_SE_config(_C.MODEL.MoViNetA4.blocks[2][2], 96, 96, 320, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
 fill_SE_config(_C.MODEL.MoViNetA4.blocks[2][3], 96, 96, 192, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
 fill_SE_config(_C.MODEL.MoViNetA4.blocks[2][4], 96, 96, 320, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
-fill_SE_config(_C.MODEL.MoViNetA4.blocks[2][5], 96, 96, 152, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
+fill_SE_config(_C.MODEL.MoViNetA4.blocks[2][5], 96, 96, 160, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
 fill_SE_config(_C.MODEL.MoViNetA4.blocks[2][6], 96, 96, 320, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
 fill_SE_config(_C.MODEL.MoViNetA4.blocks[2][7], 96, 96, 256, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
 fill_SE_config(_C.MODEL.MoViNetA4.blocks[2][8], 96, 96, 320, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
@@ -368,6 +371,7 @@ _C.MODEL.MoViNetA4.dense9.hidden_dim = 2048
 
 _C.MODEL.MoViNetA5 = CN()
 _C.MODEL.MoViNetA5.name = "A5"
+_C.MODEL.MoViNetA5.weights = "https://github.com/Atze00/MoViNet-pytorch/blob/main/weight/modelA5_statedict?raw=true"
 _C.MODEL.MoViNetA5.conv1 = CN()
 fill_conv(_C.MODEL.MoViNetA5.conv1, 3,24,(1,3,3),(1,2,2),(0,1,1))
 
@@ -434,21 +438,21 @@ fill_SE_config(_C.MODEL.MoViNetA5.blocks[4][2], 224, 224, 600, (1,5,5), (1,1,1),
 fill_SE_config(_C.MODEL.MoViNetA5.blocks[4][3], 224, 224, 600, (1,5,5), (1,1,1), (0,2,2), (0,1,1))
 fill_SE_config(_C.MODEL.MoViNetA5.blocks[4][4], 224, 224, 744, (1,5,5), (1,1,1), (0,2,2), (0,1,1))
 fill_SE_config(_C.MODEL.MoViNetA5.blocks[4][5], 224, 224, 744, (1,5,5), (1,1,1), (0,2,2), (0,1,1))
-fill_SE_config(_C.MODEL.MoViNetA5.blocks[4][6], 224, 224, 744, (1,3,3), (1,1,1), (0,1,1), (0,1,1))
+fill_SE_config(_C.MODEL.MoViNetA5.blocks[4][6], 224, 224, 744, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
 fill_SE_config(_C.MODEL.MoViNetA5.blocks[4][7], 224, 224, 896, (1,5,5), (1,1,1), (0,2,2), (0,1,1))
 fill_SE_config(_C.MODEL.MoViNetA5.blocks[4][8], 224, 224, 600, (1,5,5), (1,1,1), (0,2,2), (0,1,1))
 fill_SE_config(_C.MODEL.MoViNetA5.blocks[4][9], 224, 224, 600, (1,5,5), (1,1,1), (0,2,2), (0,1,1))
 fill_SE_config(_C.MODEL.MoViNetA5.blocks[4][10], 224, 224, 896, (1,5,5), (1,1,1), (0,2,2), (0,1,1))
 fill_SE_config(_C.MODEL.MoViNetA5.blocks[4][11], 224, 224, 744, (1,5,5), (1,1,1), (0,2,2), (0,1,1))
 fill_SE_config(_C.MODEL.MoViNetA5.blocks[4][12], 224, 224, 744, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
-fill_SE_config(_C.MODEL.MoViNetA5.blocks[4][13], 224, 224, 600, (1,5,5), (1,1,1), (0,2,2), (0,1,1))
+fill_SE_config(_C.MODEL.MoViNetA5.blocks[4][13], 224, 224, 896, (1,5,5), (1,1,1), (0,2,2), (0,1,1))
 fill_SE_config(_C.MODEL.MoViNetA5.blocks[4][14], 224, 224, 600, (1,5,5), (1,1,1), (0,2,2), (0,1,1))
 fill_SE_config(_C.MODEL.MoViNetA5.blocks[4][15], 224, 224, 600, (1,5,5), (1,1,1), (0,2,2), (0,1,1))
-fill_SE_config(_C.MODEL.MoViNetA5.blocks[4][16], 224, 224, 600, (1,5,5), (1,1,1), (0,2,2), (0,1,1))
-fill_SE_config(_C.MODEL.MoViNetA5.blocks[4][17], 224, 224, 600, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
+fill_SE_config(_C.MODEL.MoViNetA5.blocks[4][16], 224, 224, 744, (1,5,5), (1,1,1), (0,2,2), (0,1,1))
+fill_SE_config(_C.MODEL.MoViNetA5.blocks[4][17], 224, 224, 744, (3,3,3), (1,1,1), (0,1,1), (0,1,1))
 
 _C.MODEL.MoViNetA5.conv7= CN()
-fill_conv(_C.MODEL.MoViNetA5.conv7, 224,922,(1,1,1),(1,1,1),(0,0,0))
+fill_conv(_C.MODEL.MoViNetA5.conv7, 224,992,(1,1,1),(1,1,1),(0,0,0))
 
 _C.MODEL.MoViNetA5.dense9= CN()
 _C.MODEL.MoViNetA5.dense9.hidden_dim = 2048
