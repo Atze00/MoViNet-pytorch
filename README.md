@@ -51,8 +51,17 @@ def train_iter(model, optimz, data_load, n_clips = 5, n_clip_frames=8):
         #clean the buffer of activations
         model.clean_activation_buffers()
 ```
-#### Pretrained models
-Currently the only available pretrained models are on tf hub: https://tfhub.dev/google/collections/movinet/1 <br>
-Pytorch models with loaded TF weights don't seem to output the same tensor as the tf models. <br>
-Some models on tf hub seem to have a slightly different architecture with respect to the one presented on the paper. <br>
-The pretrained pytorch models will be released once the source code is available. <br>
+## Pretrained models
+
+#### Status
+Currently are available the pretrained models for the following architectures:
+- [ ] MoViNetA1
+- [x] MoViNetA2
+- [ ] MoViNetA3
+- [ ] MoViNetA4
+- [ ] MoViNetA5
+
+#### Load weights
+```python
+MoViNetA2 = MoViNet(_C.MODEL.MoViNetA2, 600, causal = False, pretrained = True, tf_like = True )
+```
