@@ -55,11 +55,16 @@ def train_iter(model, optimz, data_load, n_clips = 5, n_clip_frames=8):
 
 #### Status
 Currently are available the pretrained models for the following architectures:
-- [ ] MoViNetA1
-- [x] MoViNetA2
-- [ ] MoViNetA3
-- [ ] MoViNetA4
-- [ ] MoViNetA5
+- [x] MoViNetA1-BASE
+- [ ] MoViNetA1-STREAM
+- [x] MoViNetA2-BASE
+- [ ] MoViNetA2-STREAM
+- [x] MoViNetA3-BASE
+- [ ] MoViNetA3-STREAM
+- [x] MoViNetA4-BASE
+- [ ] MoViNetA4-STREAM
+- [x] MoViNetA5-BASE
+- [ ] MoViNetA5-STREAM
 
 #### Load weights
 ```python
