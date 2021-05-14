@@ -5,9 +5,19 @@ https://pytorch.org/vision/stable/_modules/torchvision/models/mobilenetv3.html
 """
 from collections import OrderedDict
 import torch
+from torch.nn.modules.utils import _triple
 import torch.nn.functional as F
-from typing import Any, Callable, Optional, Tuple
+from typing import Any, Callable, Optional, Tuple, Union
 from torch import nn, Tensor
+from functools import partial
+
+
+class swish(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x : Tensor) -> Tensor:
+        return x * torch.sigmoid(x)
 
 
 class CausalModule(nn.Module):
@@ -25,7 +35,7 @@ class TemporalCGAvgPool3D(CausalModule):
         self.T = 0
         self.register_forward_hook(self._detach_activation)
 
-    def forward(self, x: Tensor):
+    def forward(self, x: Tensor) -> Tensor:
         self.T += x.shape[2]
         if self.activation is None:
             self.activation = torch.sum(x, dim=2, keepdim=True)
@@ -51,10 +61,11 @@ class CausalConv(CausalModule):
             self,
             in_planes: int,
             out_planes: int,
-            kernel_size: Tuple[int, int, int],
+            kernel_size: Union[int,Tuple[int, int, int]],
             **kwargs: Any,
             ) -> None:
         super().__init__()
+        kernel_size = _triple(kernel_size)
         self.kernel_size = kernel_size
         self.dim_pad = self.kernel_size[0]-1
         self.conv = nn.Conv3d(in_planes, out_planes, kernel_size, **kwargs)
@@ -88,18 +99,18 @@ class SqueezeExcitation(nn.Module):
         super().__init__()
         squeeze_channels = _make_divisible(input_channels//squeeze_factor, 8)
         self.fc1 = nn.Conv3d(input_channels, squeeze_channels, (1, 1, 1))
-        self.relu = nn.ReLU(inplace=True)
+        self.swish = swish()
         self.fc2 = nn.Conv3d(squeeze_channels, input_channels, (1, 1, 1))
 
-    def _scale(self, input: Tensor, inplace: bool) -> Tensor:
+    def _scale(self, input: Tensor) -> Tensor:
         scale = F.adaptive_avg_pool3d(input, 1)
         scale = self.fc1(scale)
-        scale = self.relu(scale)
+        scale = self.swish(scale)
         scale = self.fc2(scale)
-        return F.hardsigmoid(scale, inplace=inplace)
+        return torch.sigmoid(scale)
 
     def forward(self, input: Tensor) -> Tensor:
-        scale = self._scale(input, True)
+        scale = self._scale(input)
         return scale * input
 
 
@@ -121,6 +132,31 @@ def _make_divisible(v: float,
         new_v += divisor
     return new_v
 
+class Pad(nn.Module):
+    def __init__(self, pad: Tuple[int, ...], mode: str = "constant", value: int = 0 ):
+        super().__init__()
+        self.pad = partial(F.pad,pad= pad,mode = mode, value = value)
+
+    def forward(self, x: Tensor) -> Tensor:
+        x = self.pad(x)
+        return x 
+
+class tfAvgPool(nn.Module):
+    def __init__(self):
+        super().__init__()
+        padding_pad = (0,1,0,1)
+        self.pad = Pad(padding_pad)
+        self.avgf = nn.AvgPool3d((1, 3, 3),stride=(1,2,2))
+
+    def forward(self,x: Tensor) -> Tensor:
+        x = self.pad(x)
+        x = self.avgf(x)
+        x[...,-1]=x[...,-1]*9/6
+        x[...,-1,:]=x[...,-1,:]*9/6
+        
+        return x
+
+
 
 class ConvBNActivation(nn.Sequential):
     def __init__(
@@ -129,14 +165,38 @@ class ConvBNActivation(nn.Sequential):
                  out_planes: int,
                  *,
                  causal: bool,
-                 kernel_size: Tuple[int, int, int],
-                 padding: Tuple[int, int, int],
-                 stride: int = 1,
+                 tf_like: bool,
+                 kernel_size: Union[int,Tuple[int, int, int]], 
+                 padding: Union[int,Tuple[int, int, int]],
+                 stride: Union[int,Tuple[int, int, int]] = 1,
                  groups: int = 1,
                  norm_layer: Optional[Callable[..., nn.Module]] = None,
                  activation_layer: Optional[Callable[..., nn.Module]] = None,
                  ) -> None:
+        kernel_size = _triple(kernel_size)
+        stride = _triple(stride)
+        padding = _triple(padding)
+
+        side_pad = False
+        if tf_like:
+            assert stride[0] == 1, "for tf_like behavior only stride == 1 is supported on temporal dimension"
+            assert max(stride) <= 2, "for tf_like behavior only stride <=2 is supported"
+            assert kernel_size[1] == kernel_size[2], "for tf_like behavior only h and w having same dimension is supported"
+            assert kernel_size[1] == 1 or kernel_size[1] == 3 or kernel_size[1] == 5, "for tf_like behavior only kernel size of 1 or 3 or 5 is supported"
+            if kernel_size[1] == 1:
+                assert stride[1] == 1 and stride[2] == 1, "for tf_like behavior with kernel size of 1, only stride 1 is supported"
+
+            if stride[2] == 2  and (kernel_size[2]==3 or kernel_size[2]==5):
+                padding = (0,0,0)
+                side_pad = True
+                if kernel_size[2]==3:
+                    padding_pad = (0,1,0,1)
+                if kernel_size[2]==5:
+                    padding_pad = (1,2,1,2)
+                
+            
         if causal:
+            assert padding[0] == 0, "when in causal mode padding of temporal dim should be 0"
             convolution = CausalConv
         else:
             assert kernel_size[0] % 2 != 0, "you should use odd kernels"
@@ -145,22 +205,26 @@ class ConvBNActivation(nn.Sequential):
         if norm_layer is None:
             norm_layer = nn.BatchNorm3d
         if activation_layer is None:
-            activation_layer = nn.Hardswish
-        super(ConvBNActivation, self).__init__(
-                OrderedDict({"conv3d": convolution(in_planes, out_planes,
+            activation_layer = swish
+        dict_layers = OrderedDict({
+                            "conv3d": convolution(in_planes, out_planes,
                              kernel_size=kernel_size,
                              stride=stride,
                              padding=padding,
                              groups=groups,
                              bias=False),
-                             "norm": norm_layer(out_planes),
-                             "act": activation_layer(inplace=True)})
-        )
+                             "norm": norm_layer(out_planes, eps = 0.001),
+                             "act": activation_layer()
+                             })
+        if side_pad:
+            dict_layers["pad"] = Pad(padding_pad)
+            dict_layers.move_to_end('pad', last=False)
+        super(ConvBNActivation, self).__init__(dict_layers)
         self.out_channels = out_planes
 
 
 class BasicBneck(nn.Module):
-    def __init__(self, cfg: "CfgNode", causal: bool) -> None:
+    def __init__(self, cfg: "CfgNode", causal: bool, tf_like: bool) -> None:
         super().__init__()
         assert type(cfg.stride) is tuple
         self.res = None
@@ -174,7 +238,8 @@ class BasicBneck(nn.Module):
                 padding=(0, 0, 0),
                 norm_layer=cfg.norm_layer,
                 activation_layer=cfg.activation_layer,
-                causal=causal
+                causal=causal,
+                tf_like = tf_like
                 )
         # deepwise
         self.deep = ConvBNActivation(
@@ -186,7 +251,8 @@ class BasicBneck(nn.Module):
             norm_layer=cfg.norm_layer,
             groups=cfg.expanded_channels,
             activation_layer=cfg.activation_layer,
-            causal=causal
+            causal=causal,
+            tf_like = tf_like
             )
         # SE
         self.se = SqueezeExcitation(cfg.expanded_channels)
@@ -198,11 +264,16 @@ class BasicBneck(nn.Module):
             padding=(0, 0, 0),
             norm_layer=cfg.norm_layer,
             activation_layer=nn.Identity,
-            causal=causal
+            causal=causal,
+            tf_like = tf_like
             )
 
         if not (cfg.stride == (1, 1, 1) and cfg.input_channels == cfg.out_channels):
-            layers.append(nn.AvgPool3d((1, 3, 3),
+            if cfg.stride != (1, 1, 1):
+                if tf_like:
+                    layers.append(tfAvgPool())
+                else:
+                    layers.append(nn.AvgPool3d((1, 3, 3),
                           stride=cfg.stride,
                           padding=cfg.padding_avg))
             layers.append(ConvBNActivation(
@@ -211,8 +282,9 @@ class BasicBneck(nn.Module):
                     kernel_size=(1, 1, 1),
                     padding=(0, 0, 0),
                     norm_layer=cfg.norm_layer,
-                    activation_layer=cfg.activation_layer,
-                    causal=causal
+                    activation_layer=nn.Identity,
+                    causal=causal,
+                    tf_like = tf_like
                     ))
             self.res = nn.Sequential(*layers)
         # ReZero
@@ -236,9 +308,15 @@ class MoViNet(nn.Module):
     def __init__(self,
                  cfg: "CfgNode",
                  num_classes: int,
-                 causal: bool = True
+                 causal: bool = True,
+                 pretrained = False,
+                 tf_like = False
                  ) -> None:
         super().__init__()
+        if pretrained:
+            assert cfg.name == "A2", "only A2 is available pretrained"
+            assert tf_like, "pretained model available only with tf_like behavior"
+
         blocks_dic = OrderedDict()
         # conv1
         self.conv1 = ConvBNActivation(
@@ -249,12 +327,13 @@ class MoViNet(nn.Module):
             norm_layer=cfg.conv1.norm_layer,
             padding=cfg.conv1.padding,
             activation_layer=cfg.conv1.activation_layer,
-            causal=causal
+            causal=causal,
+            tf_like = tf_like
             )
         # blocks
         for i, block in enumerate(cfg.blocks):
             for j, basicblock in enumerate(block):
-                blocks_dic[f"b{i}_l{j}"] = BasicBneck(basicblock, causal=causal)
+                blocks_dic[f"b{i}_l{j}"] = BasicBneck(basicblock, causal=causal,tf_like = tf_like)
         self.blocks = nn.Sequential(blocks_dic)
         # conv7
         self.conv7 = ConvBNActivation(
@@ -265,20 +344,25 @@ class MoViNet(nn.Module):
             padding=cfg.conv7.padding,
             norm_layer=cfg.conv7.norm_layer,
             activation_layer=cfg.conv7.activation_layer,
-            causal=causal
+            causal=causal,
+            tf_like = tf_like
             )
         # pool
         self.classifier = nn.Sequential(
             # dense9
             nn.Conv3d(cfg.conv7.out_channels,  cfg.dense9.hidden_dim, (1, 1, 1)),
-            nn.Hardswish(inplace=True),
+            swish(),
             nn.Dropout(p=0.2, inplace=True),
             # dense10
             nn.Conv3d(cfg.dense9.hidden_dim,  num_classes, (1, 1, 1)),
         )
         if causal:
             self.cgap = TemporalCGAvgPool3D()
-        self.apply(self._weight_init)
+        if pretrained:
+            state_dict = torch.hub.load_state_dict_from_url(cfg.weights )
+            self.load_state_dict(state_dict)
+        else:
+            self.apply(self._weight_init)
         self.causal = causal
 
     def avg(self, x):
