@@ -1,7 +1,7 @@
 # MoViNet-pytorch
 Pytorch implementation of [MoViNets: Mobile Video Networks for Efficient Video Recognition](https://arxiv.org/pdf/2103.11511.pdf). <br>
 Authors: Dan Kondratyuk, Liangzhe Yuan, Yandong Li, Li Zhang, Mingxing Tan, Matthew Brown, Boqing Gong (Google Research) <br>
-[[Authors' Implementation]](https://github.com/tensorflow/models/tree/master/official/vision) (available soon)<br>
+[[Authors' Implementation]](https://github.com/tensorflow/models/tree/master/official/vision)<br>
 
 ## Stream Buffer
 ![stream buffer](https://github.com/Atze00/MoViNet-pytorch/blob/main/figures/Stream_buffer.png)
@@ -69,4 +69,14 @@ Currently are available the pretrained models for the following architectures:
 #### Load weights
 ```python
 MoViNetA2 = MoViNet(_C.MODEL.MoViNetA2, 600, causal = False, pretrained = True, tf_like = True )
+```
+
+### Citations
+```bibtex
+@article{kondratyuk2021movinets,
+  title={MoViNets: Mobile Video Networks for Efficient Video Recognition},
+  author={Dan Kondratyuk, Liangzhe Yuan, Yandong Li, Li Zhang, Matthew Brown, and Boqing Gong},
+  journal={arXiv preprint arXiv:2103.11511},
+  year={2021}
+}
 ```
