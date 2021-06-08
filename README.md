@@ -53,6 +53,8 @@ def train_iter(model, optimz, data_load, n_clips = 5, n_clip_frames=8):
         model.clean_activation_buffers()
 ```
 ## Pretrained models
+#### weights
+The weights are loaded from the tensorflow models released by the authors, trained on kinetics.
 
 #### Status
 Currently are available the pretrained models for the following architectures:
@@ -68,6 +70,9 @@ Currently are available the pretrained models for the following architectures:
 - [ ] MoViNetA5-STREAM
 
 #### Load weights
+tf_like indicated that the model will behave like a tensorflow model in some restricted scenarios. <br>
+tf_like is necessary in order to obtain models that work with tensorflow weights released by the autors. <br>
+tf_like behaviour should not be used when you are trying to train a network from scratch, the functionality are very limited and the speed of the network is slightly reduced.<br>
 ```python
 MoViNetA2 = MoViNet(_C.MODEL.MoViNetA2, 600, causal = False, pretrained = True, tf_like = True )
 ```
