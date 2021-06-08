@@ -132,28 +132,43 @@ def _make_divisible(v: float,
         new_v += divisor
     return new_v
 
-class Pad(nn.Module):
-    def __init__(self, pad: Tuple[int, ...], mode: str = "constant", value: int = 0 ):
-        super().__init__()
-        self.pad = partial(F.pad,pad= pad,mode = mode, value = value)
 
-    def forward(self, x: Tensor) -> Tensor:
-        x = self.pad(x)
-        return x 
+
+def pad_tf(x,in_height, in_width ,stride_h,stride_w, filter_height,filter_width):
+    if (in_height % stride_h == 0):
+      pad_along_height = max(filter_height - stride_h, 0)
+    else:
+      pad_along_height = max(filter_height - (in_height % stride_h), 0)
+    if (in_width % stride_w == 0):
+      pad_along_width = max(filter_width - stride_w, 0)
+    else:
+      pad_along_width = max(filter_width - (in_width % stride_w), 0)
+    pad_top = pad_along_height // 2
+    pad_bottom = pad_along_height - pad_top
+    pad_left = pad_along_width // 2
+    pad_right = pad_along_width - pad_left
+    padding_pad = (pad_left,pad_right, pad_top, pad_bottom)
+    return torch.nn.functional.pad(x,padding_pad)
 
 class tfAvgPool(nn.Module):
     def __init__(self):
         super().__init__()
-        padding_pad = (0,1,0,1)
-        self.pad = Pad(padding_pad)
         self.avgf = nn.AvgPool3d((1, 3, 3),stride=(1,2,2))
 
     def forward(self,x: Tensor) -> Tensor:
-        x = self.pad(x)
-        x = self.avgf(x)
-        x[...,-1]=x[...,-1]*9/6
-        x[...,-1,:]=x[...,-1,:]*9/6
-        
+        assert x.shape[-1]==x.shape[-2], "only same shape for h and w are supported by avg with tf_like"
+        f1 =x.shape[-1]%2!=0
+        if f1:
+            padding_pad = (0,0,0,0)
+        else:
+            padding_pad = (0,1,0,1)
+        x=torch.nn.functional.pad(x,padding_pad)
+        if f1:
+            x = torch.nn.functional.avg_pool3d( x,(1, 3, 3),stride=(1,2,2), count_include_pad=False,padding=(0,1,1))
+        else:
+            x = self.avgf(x)
+            x[...,-1]=x[...,-1]*9/6
+            x[...,-1,:]=x[...,-1,:]*9/6
         return x
 
 
@@ -173,28 +188,12 @@ class ConvBNActivation(nn.Sequential):
                  norm_layer: Optional[Callable[..., nn.Module]] = None,
                  activation_layer: Optional[Callable[..., nn.Module]] = None,
                  ) -> None:
+        self.tf_like = tf_like
         kernel_size = _triple(kernel_size)
         stride = _triple(stride)
         padding = _triple(padding)
-
-        side_pad = False
         if tf_like:
-            assert stride[0] == 1, "for tf_like behavior only stride == 1 is supported on temporal dimension"
-            assert max(stride) <= 2, "for tf_like behavior only stride <=2 is supported"
-            assert kernel_size[1] == kernel_size[2], "for tf_like behavior only h and w having same dimension is supported"
-            assert kernel_size[1] == 1 or kernel_size[1] == 3 or kernel_size[1] == 5, "for tf_like behavior only kernel size of 1 or 3 or 5 is supported"
-            if kernel_size[1] == 1:
-                assert stride[1] == 1 and stride[2] == 1, "for tf_like behavior with kernel size of 1, only stride 1 is supported"
-
-            if stride[2] == 2  and (kernel_size[2]==3 or kernel_size[2]==5):
-                padding = (0,0,0)
-                side_pad = True
-                if kernel_size[2]==3:
-                    padding_pad = (0,1,0,1)
-                if kernel_size[2]==5:
-                    padding_pad = (1,2,1,2)
-                
-            
+            padding = (0,0,0)
         if causal:
             assert padding[0] == 0, "when in causal mode padding of temporal dim should be 0"
             convolution = CausalConv
@@ -206,6 +205,8 @@ class ConvBNActivation(nn.Sequential):
             norm_layer = nn.BatchNorm3d
         if activation_layer is None:
             activation_layer = swish
+        self.kernel_size = kernel_size
+        self.stride = stride
         dict_layers = OrderedDict({
                             "conv3d": convolution(in_planes, out_planes,
                              kernel_size=kernel_size,
@@ -216,17 +217,22 @@ class ConvBNActivation(nn.Sequential):
                              "norm": norm_layer(out_planes, eps = 0.001),
                              "act": activation_layer()
                              })
-        if side_pad:
-            dict_layers["pad"] = Pad(padding_pad)
-            dict_layers.move_to_end('pad', last=False)
+           
         super(ConvBNActivation, self).__init__(dict_layers)
         self.out_channels = out_planes
+
+    def forward(self, x):
+        if self.tf_like:
+            x = pad_tf(x,x.shape[-2],x.shape[-1], self.stride[-2],self.stride[-1],self.kernel_size[-2],self.kernel_size[-1]) 
+        return super().forward(x)
 
 
 class BasicBneck(nn.Module):
     def __init__(self, cfg: "CfgNode", causal: bool, tf_like: bool) -> None:
         super().__init__()
         assert type(cfg.stride) is tuple
+        if not (1 <= cfg.stride[0] <= 2) or not (1 <= cfg.stride[1] <= 2) or not (1 <= cfg.stride[2] <= 2):
+            raise ValueError('illegal stride value')
         self.res = None
         layers = []
         if cfg.expanded_channels != cfg.out_channels:
@@ -271,6 +277,7 @@ class BasicBneck(nn.Module):
         if not (cfg.stride == (1, 1, 1) and cfg.input_channels == cfg.out_channels):
             if cfg.stride != (1, 1, 1):
                 if tf_like:
+
                     layers.append(tfAvgPool())
                 else:
                     layers.append(nn.AvgPool3d((1, 3, 3),
@@ -299,7 +306,6 @@ class BasicBneck(nn.Module):
         result = self.deep(result)
         result = self.se(result)
         result = self.project(result)
-
         result = input + self.alpha * result
         return result
 
