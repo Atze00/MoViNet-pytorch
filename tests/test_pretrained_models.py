@@ -20,8 +20,8 @@ movinets=[_C.MODEL.MoViNetA0,
         _C.MODEL.MoViNetA5,]
 
 
-class TestTfAvgPool(unittest.TestCase):
-    def testTfAvgPool(self):
+class TestPretrainedModels(unittest.TestCase):
+    def testPretrainedModels(self):
         image_url = 'https://upload.wikimedia.org/wikipedia/commons/8/84/Ski_Famille_-_Family_Ski_Holidays.jpg'
         image_height_l = [172,172,224,256,290,320]
         image_width_l  = [172,172,224,256,290,320]
