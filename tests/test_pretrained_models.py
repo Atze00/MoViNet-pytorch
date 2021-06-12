@@ -45,7 +45,7 @@ class TestPretrainedModels(unittest.TestCase):
             video = tf.cast(video, tf.float32) / 255.
             video_2 = rearrange(torch.from_numpy(video.numpy()), "b t h w c-> b c t h w")
             encoder = hub.KerasLayer(
-            f"https://tfhub.dev/tensorflow/movinet/a{i}/base/kinetics-600/classification/1")
+            f"https://tfhub.dev/tensorflow/movinet/a{i}/base/kinetics-600/classification/2")
 
             # Important: due to a bug in the tf.nn.conv3d CPU implementation, we must
             # compile with tf.function to enforce correct behavior. Otherwise, the output

@@ -52,7 +52,7 @@ _C.MODEL = CN()
 
 _C.MODEL.MoViNetA0 = CN()
 _C.MODEL.MoViNetA0.name = "A0"
-_C.MODEL.MoViNetA0.weights = "https://github.com/Atze00/MoViNet-pytorch/blob/main/weights/modelA0_statedict?raw=true"
+_C.MODEL.MoViNetA0.weights = "https://github.com/Atze00/MoViNet-pytorch/blob/main/weights/modelA0_statedict_v2?raw=true"
 _C.MODEL.MoViNetA0.conv1 = CN()
 fill_conv(_C.MODEL.MoViNetA0.conv1, 3,8,(1,3,3),(1,2,2),(0,1,1))
 
@@ -102,7 +102,7 @@ _C.MODEL.MoViNetA0.dense9.hidden_dim = 2048
 
 _C.MODEL.MoViNetA1 = CN()
 _C.MODEL.MoViNetA1.name = "A1"
-_C.MODEL.MoViNetA1.weights = "https://github.com/Atze00/MoViNet-pytorch/blob/main/weights/modelA1_statedict?raw=true"
+_C.MODEL.MoViNetA1.weights = "https://github.com/Atze00/MoViNet-pytorch/blob/main/weights/modelA1_statedict_v2?raw=true"
 _C.MODEL.MoViNetA1.conv1 = CN()
 fill_conv(_C.MODEL.MoViNetA1.conv1, 3, 16,(1,3,3),(1,2,2),(0,1,1))
 
@@ -162,7 +162,7 @@ _C.MODEL.MoViNetA1.dense9.hidden_dim = 2048
 
 _C.MODEL.MoViNetA2 = CN()
 _C.MODEL.MoViNetA2.name = "A2"
-_C.MODEL.MoViNetA2.weights = "https://github.com/Atze00/MoViNet-pytorch/blob/main/weights/modelA2_statedict?raw=true"
+_C.MODEL.MoViNetA2.weights = "https://github.com/Atze00/MoViNet-pytorch/blob/main/weights/modelA2_statedict_v2?raw=true"
 
 
 _C.MODEL.MoViNetA2.conv1 = CN()
@@ -224,7 +224,7 @@ _C.MODEL.MoViNetA2.dense9.hidden_dim = 2048
 
 _C.MODEL.MoViNetA3 = CN()
 _C.MODEL.MoViNetA3.name = "A3"
-_C.MODEL.MoViNetA3.weights = "https://github.com/Atze00/MoViNet-pytorch/blob/main/weights/modelA3_statedict?raw=true"
+_C.MODEL.MoViNetA3.weights = "https://github.com/Atze00/MoViNet-pytorch/blob/main/weights/modelA3_statedict_v2?raw=true"
 _C.MODEL.MoViNetA3.conv1 = CN()
 fill_conv(_C.MODEL.MoViNetA3.conv1, 3,16,(1,3,3),(1,2,2),(0,1,1))
 
@@ -290,7 +290,7 @@ _C.MODEL.MoViNetA3.dense9.hidden_dim = 2048
 
 _C.MODEL.MoViNetA4 = CN()
 _C.MODEL.MoViNetA4.name = "A4"
-_C.MODEL.MoViNetA4.weights = "https://github.com/Atze00/MoViNet-pytorch/blob/main/weights/modelA4_statedict?raw=true"
+_C.MODEL.MoViNetA4.weights = "https://github.com/Atze00/MoViNet-pytorch/blob/main/weights/modelA4_statedict_v2?raw=true"
 _C.MODEL.MoViNetA4.conv1 = CN()
 fill_conv(_C.MODEL.MoViNetA4.conv1, 3,24,(1,3,3),(1,2,2),(0,1,1))
 
@@ -371,7 +371,7 @@ _C.MODEL.MoViNetA4.dense9.hidden_dim = 2048
 
 _C.MODEL.MoViNetA5 = CN()
 _C.MODEL.MoViNetA5.name = "A5"
-_C.MODEL.MoViNetA5.weights = "https://github.com/Atze00/MoViNet-pytorch/blob/main/weights/modelA5_statedict?raw=true"
+_C.MODEL.MoViNetA5.weights = "https://github.com/Atze00/MoViNet-pytorch/blob/main/weights/modelA5_statedict_v2?raw=true"
 _C.MODEL.MoViNetA5.conv1 = CN()
 fill_conv(_C.MODEL.MoViNetA5.conv1, 3,24,(1,3,3),(1,2,2),(0,1,1))
 
