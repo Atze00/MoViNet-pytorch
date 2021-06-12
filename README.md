@@ -53,8 +53,24 @@ def train_iter(model, optimz, data_load, n_clips = 5, n_clip_frames=8):
         model.clean_activation_buffers()
 ```
 ## Pretrained models
-#### weights
+#### Weights
 The weights are loaded from the tensorflow models released by the authors, trained on kinetics.
+
+#### Base Models
+
+Base models implement standard 3D convolutions without stream buffers.
+
+| Model Name | Top-1 Accuracy* | Top-5 Accuracy* | Input Shape |
+|------------|----------------|----------------|-------------|
+| MoViNet-A0-Base | 72.28 | 90.92 | 50 x 172 x 172 | 
+| MoViNet-A1-Base | 76.69 | 93.40 | 50 x 172 x 172 | 
+| MoViNet-A2-Base | 78.62 | 94.17 | 50 x 224 x 224 | 
+| MoViNet-A3-Base | 81.79 | 95.67 | 120 x 256 x 256 | 
+| MoViNet-A4-Base | 83.48 | 96.16 | 80 x 290 x 290 | 
+| MoViNet-A5-Base | 84.27 | 96.39 | 120 x 320 x 320 | 
+
+*Accuracy reported on the official repository, It has not been tested by me. It should be the same since the tf models and the reimplemented pytorch models output the same results [[Test]](https://github.com/Atze00/MoViNet-pytorch/blob/main/tests/test_pretrained_models.py).
+
 
 #### Status
 Currently are available the pretrained models for the following architectures:
