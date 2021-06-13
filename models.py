@@ -9,14 +9,13 @@ from torch.nn.modules.utils import _triple
 import torch.nn.functional as F
 from typing import Any, Callable, Optional, Tuple, Union
 from torch import nn, Tensor
-from functools import partial
 
 
 class swish(nn.Module):
     def __init__(self):
         super().__init__()
 
-    def forward(self, x : Tensor) -> Tensor:
+    def forward(self, x: Tensor) -> Tensor:
         return x * torch.sigmoid(x)
 
 
@@ -61,7 +60,7 @@ class CausalConv(CausalModule):
             self,
             in_planes: int,
             out_planes: int,
-            kernel_size: Union[int,Tuple[int, int, int]],
+            kernel_size: Union[int, Tuple[int, int, int]],
             **kwargs: Any,
             ) -> None:
         super().__init__()
@@ -133,44 +132,50 @@ def _make_divisible(v: float,
     return new_v
 
 
-
-def pad_tf(x,in_height, in_width ,stride_h,stride_w, filter_height,filter_width):
+def pad_tf(x: Tensor,
+           in_height: int, in_width: int,
+           stride_h: int, stride_w: int,
+           filter_height: int, filter_width: int) -> Tensor:
     if (in_height % stride_h == 0):
-      pad_along_height = max(filter_height - stride_h, 0)
+        pad_along_height = max(filter_height - stride_h, 0)
     else:
-      pad_along_height = max(filter_height - (in_height % stride_h), 0)
+        pad_along_height = max(filter_height - (in_height % stride_h), 0)
     if (in_width % stride_w == 0):
-      pad_along_width = max(filter_width - stride_w, 0)
+        pad_along_width = max(filter_width - stride_w, 0)
     else:
-      pad_along_width = max(filter_width - (in_width % stride_w), 0)
+        pad_along_width = max(filter_width - (in_width % stride_w), 0)
     pad_top = pad_along_height // 2
     pad_bottom = pad_along_height - pad_top
     pad_left = pad_along_width // 2
     pad_right = pad_along_width - pad_left
-    padding_pad = (pad_left,pad_right, pad_top, pad_bottom)
-    return torch.nn.functional.pad(x,padding_pad)
+    padding_pad = (pad_left, pad_right, pad_top, pad_bottom)
+    return torch.nn.functional.pad(x, padding_pad)
+
 
 class tfAvgPool(nn.Module):
     def __init__(self):
         super().__init__()
-        self.avgf = nn.AvgPool3d((1, 3, 3),stride=(1,2,2))
+        self.avgf = nn.AvgPool3d((1, 3, 3), stride=(1, 2, 2))
 
-    def forward(self,x: Tensor) -> Tensor:
-        assert x.shape[-1]==x.shape[-2], "only same shape for h and w are supported by avg with tf_like"
-        f1 =x.shape[-1]%2!=0
+    def forward(self, x: Tensor) -> Tensor:
+        assert x.shape[-1] == x.shape[-2], "only same shape for h and w are supported by avg with tf_like"
+        f1 = x.shape[-1] % 2 != 0
         if f1:
-            padding_pad = (0,0,0,0)
+            padding_pad = (0, 0, 0, 0)
         else:
-            padding_pad = (0,1,0,1)
-        x=torch.nn.functional.pad(x,padding_pad)
+            padding_pad = (0, 1, 0, 1)
+        x = torch.nn.functional.pad(x, padding_pad)
         if f1:
-            x = torch.nn.functional.avg_pool3d( x,(1, 3, 3),stride=(1,2,2), count_include_pad=False,padding=(0,1,1))
+            x = torch.nn.functional.avg_pool3d(x,
+                                               (1, 3, 3),
+                                               stride=(1, 2, 2),
+                                               count_include_pad=False,
+                                               padding=(0, 1, 1))
         else:
             x = self.avgf(x)
-            x[...,-1]=x[...,-1]*9/6
-            x[...,-1,:]=x[...,-1,:]*9/6
+            x[..., -1] = x[..., -1] * 9/6
+            x[..., -1, :] = x[..., -1, :] * 9/6
         return x
-
 
 
 class ConvBNActivation(nn.Sequential):
@@ -181,9 +186,9 @@ class ConvBNActivation(nn.Sequential):
                  *,
                  causal: bool,
                  tf_like: bool,
-                 kernel_size: Union[int,Tuple[int, int, int]], 
-                 padding: Union[int,Tuple[int, int, int]],
-                 stride: Union[int,Tuple[int, int, int]] = 1,
+                 kernel_size: Union[int, Tuple[int, int, int]],
+                 padding: Union[int, Tuple[int, int, int]],
+                 stride: Union[int, Tuple[int, int, int]] = 1,
                  groups: int = 1,
                  norm_layer: Optional[Callable[..., nn.Module]] = None,
                  activation_layer: Optional[Callable[..., nn.Module]] = None,
@@ -193,7 +198,7 @@ class ConvBNActivation(nn.Sequential):
         stride = _triple(stride)
         padding = _triple(padding)
         if tf_like:
-            padding = (0,0,0)
+            padding = (0, 0, 0)
         if causal:
             assert padding[0] == 0, "when in causal mode padding of temporal dim should be 0"
             convolution = CausalConv
@@ -209,21 +214,23 @@ class ConvBNActivation(nn.Sequential):
         self.stride = stride
         dict_layers = OrderedDict({
                             "conv3d": convolution(in_planes, out_planes,
-                             kernel_size=kernel_size,
-                             stride=stride,
-                             padding=padding,
-                             groups=groups,
-                             bias=False),
-                             "norm": norm_layer(out_planes, eps = 0.001),
-                             "act": activation_layer()
-                             })
-           
+                                                  kernel_size=kernel_size,
+                                                  stride=stride,
+                                                  padding=padding,
+                                                  groups=groups,
+                                                  bias=False),
+                            "norm": norm_layer(out_planes, eps=0.001),
+                            "act": activation_layer()
+                            })
+
         super(ConvBNActivation, self).__init__(dict_layers)
         self.out_channels = out_planes
 
     def forward(self, x):
         if self.tf_like:
-            x = pad_tf(x,x.shape[-2],x.shape[-1], self.stride[-2],self.stride[-1],self.kernel_size[-2],self.kernel_size[-1]) 
+            x = pad_tf(x, x.shape[-2], x.shape[-1],
+                       self.stride[-2], self.stride[-1],
+                       self.kernel_size[-2], self.kernel_size[-1])
         return super().forward(x)
 
 
@@ -245,7 +252,7 @@ class BasicBneck(nn.Module):
                 norm_layer=cfg.norm_layer,
                 activation_layer=cfg.activation_layer,
                 causal=causal,
-                tf_like = tf_like
+                tf_like=tf_like
                 )
         # deepwise
         self.deep = ConvBNActivation(
@@ -258,7 +265,7 @@ class BasicBneck(nn.Module):
             groups=cfg.expanded_channels,
             activation_layer=cfg.activation_layer,
             causal=causal,
-            tf_like = tf_like
+            tf_like=tf_like
             )
         # SE
         self.se = SqueezeExcitation(cfg.expanded_channels)
@@ -271,7 +278,7 @@ class BasicBneck(nn.Module):
             norm_layer=cfg.norm_layer,
             activation_layer=nn.Identity,
             causal=causal,
-            tf_like = tf_like
+            tf_like=tf_like
             )
 
         if not (cfg.stride == (1, 1, 1) and cfg.input_channels == cfg.out_channels):
@@ -281,8 +288,8 @@ class BasicBneck(nn.Module):
                     layers.append(tfAvgPool())
                 else:
                     layers.append(nn.AvgPool3d((1, 3, 3),
-                          stride=cfg.stride,
-                          padding=cfg.padding_avg))
+                                  stride=cfg.stride,
+                                  padding=cfg.padding_avg))
             layers.append(ConvBNActivation(
                     in_planes=cfg.input_channels,
                     out_planes=cfg.out_channels,
@@ -291,7 +298,7 @@ class BasicBneck(nn.Module):
                     norm_layer=cfg.norm_layer,
                     activation_layer=nn.Identity,
                     causal=causal,
-                    tf_like = tf_like
+                    tf_like=tf_like
                     ))
             self.res = nn.Sequential(*layers)
         # ReZero
@@ -315,12 +322,12 @@ class MoViNet(nn.Module):
                  cfg: "CfgNode",
                  num_classes: int,
                  causal: bool = True,
-                 pretrained = False,
-                 tf_like = False
+                 pretrained: bool = False,
+                 tf_like: bool = False
                  ) -> None:
         super().__init__()
         if pretrained:
-            assert causal == False, "weights are only available for non causal models"
+            assert causal is False, "weights are only available for non causal models"
             assert tf_like, "pretained model available only with tf_like behavior"
 
         blocks_dic = OrderedDict()
@@ -334,12 +341,14 @@ class MoViNet(nn.Module):
             padding=cfg.conv1.padding,
             activation_layer=cfg.conv1.activation_layer,
             causal=causal,
-            tf_like = tf_like
+            tf_like=tf_like
             )
         # blocks
         for i, block in enumerate(cfg.blocks):
             for j, basicblock in enumerate(block):
-                blocks_dic[f"b{i}_l{j}"] = BasicBneck(basicblock, causal=causal,tf_like = tf_like)
+                blocks_dic[f"b{i}_l{j}"] = BasicBneck(basicblock,
+                                                      causal=causal,
+                                                      tf_like=tf_like)
         self.blocks = nn.Sequential(blocks_dic)
         # conv7
         self.conv7 = ConvBNActivation(
@@ -351,7 +360,7 @@ class MoViNet(nn.Module):
             norm_layer=cfg.conv7.norm_layer,
             activation_layer=cfg.conv7.activation_layer,
             causal=causal,
-            tf_like = tf_like
+            tf_like=tf_like
             )
         # pool
         self.classifier = nn.Sequential(
@@ -365,7 +374,7 @@ class MoViNet(nn.Module):
         if causal:
             self.cgap = TemporalCGAvgPool3D()
         if pretrained:
-            state_dict = torch.hub.load_state_dict_from_url(cfg.weights )
+            state_dict = torch.hub.load_state_dict_from_url(cfg.weights)
             self.load_state_dict(state_dict)
         else:
             self.apply(self._weight_init)
