@@ -69,7 +69,7 @@ Base models implement standard 3D convolutions without stream buffers.
 | MoViNet-A4-Base | 83.48 | 96.16 | 80 x 290 x 290 | 
 | MoViNet-A5-Base | 84.27 | 96.39 | 120 x 320 x 320 | 
 
-*Accuracy reported on the official repository, It has not been tested by me. It should be the same since the tf models and the reimplemented pytorch models output the same results [[Test]](https://github.com/Atze00/MoViNet-pytorch/blob/main/tests/test_pretrained_models.py).
+*Accuracy reported on the official repository for the dataset kinetics 600, It has not been tested by me. It should be the same since the tf models and the reimplemented pytorch models output the same results [[Test]](https://github.com/Atze00/MoViNet-pytorch/blob/main/tests/test_pretrained_models.py).
 
 
 #### Status
