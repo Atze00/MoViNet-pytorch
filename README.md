@@ -22,7 +22,7 @@ Click on "Open in Colab" to open an example of training on HMDB-51 <br>
 `PyTorch 1.7.1` <br>
 
 #### How to build a model
-Use ```causal = True``` to use the model with stream buffer, causal = True will use standanrd convolutions<br>
+Use ```causal = True``` to use the model with stream buffer, causal = False will use standard convolutions<br>
 ```python
 from models import MoViNet
 from config import _C
@@ -34,14 +34,16 @@ MoViNetA1 = MoViNet(_C.MODEL.MoViNetA1, number_classes, causal = True)
 ...
 ```
 ##### Load weights
-Use ```pretrained = True``` to use the model with pretrained weights<br>
+Use ```pretrained = True``` to use the model with pretrained weights, ```tf_like = True``` is also required.<br>
+
+tf_like indicated that the model will behave like a tensorflow model in some restricted scenarios. <br>
+tf_like is necessary in order to obtain models that work with tensorflow weights released by the autors. <br>
+tf_like behaviour should not be used when you are trying to train a network from scratch, the functionalities are very limited and the speed of the network is slightly reduced.<br>
 
 ```python
 MoViNetA2 = MoViNet(_C.MODEL.MoViNetA2, 600, causal = False, pretrained = True, tf_like = True )
 ```
-tf_like indicated that the model will behave like a tensorflow model in some restricted scenarios. <br>
-tf_like is necessary in order to obtain models that work with tensorflow weights released by the autors. <br>
-tf_like behaviour should not be used when you are trying to train a network from scratch, the functionality are very limited and the speed of the network is slightly reduced.<br>
+
 
 #### Training loop examples
 Training loop with stream buffer
