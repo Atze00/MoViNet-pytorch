@@ -1,6 +1,6 @@
 # MoViNet-pytorch
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Atze00/MoViNet-pytorch/blob/main/movinet_tutorial.ipynb)  [![Paper](http://img.shields.io/badge/Paper-arXiv.2103.11511-B3181B?logo=arXiv)](https://arxiv.org/abs/2103.11511) <br><br>
-Pytorch implementation of [MoViNets: Mobile Video Networks for Efficient Video Recognition](https://arxiv.org/pdf/2103.11511.pdf). <br>
+Pytorch unofficial implementation of [MoViNets: Mobile Video Networks for Efficient Video Recognition](https://arxiv.org/pdf/2103.11511.pdf). <br>
 Authors: Dan Kondratyuk, Liangzhe Yuan, Yandong Li, Li Zhang, Mingxing Tan, Matthew Brown, Boqing Gong (Google Research) <br>
 [[Authors' Implementation]](https://github.com/tensorflow/models/tree/master/official/vision/beta/projects/movinet)<br>
 
@@ -13,6 +13,8 @@ It is required to clean the buffer after all the clips of the same video have be
 model.clean_activation_buffers()
 ```
 ## Usage
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Atze00/MoViNet-pytorch/blob/main/movinet_tutorial.ipynb) <br>
+Click on "Open in Colab" to open an example of training on HMDB-51 <br> 
 
 #### Main Dependencies
 ` Python 3.8` <br>
@@ -20,7 +22,7 @@ model.clean_activation_buffers()
 `PyTorch 1.7.1` <br>
 
 #### How to build a model
-
+Use ```causal = True``` to use the model with stream buffer, causal = True will use standanrd convolutions<br>
 ```python
 from models import MoViNet
 from config import _C
@@ -31,14 +33,32 @@ MoViNetA0 = MoViNet(_C.MODEL.MoViNetA0, number_classes, causal = True)
 MoViNetA1 = MoViNet(_C.MODEL.MoViNetA1, number_classes, causal = True)
 ...
 ```
+##### Load weights
+Use ```pretrained = True``` to use the model with pretrained weights<br>
 
-#### Training loop example
+```python
+MoViNetA2 = MoViNet(_C.MODEL.MoViNetA2, 600, causal = False, pretrained = True, tf_like = True )
+```
+tf_like indicated that the model will behave like a tensorflow model in some restricted scenarios. <br>
+tf_like is necessary in order to obtain models that work with tensorflow weights released by the autors. <br>
+tf_like behaviour should not be used when you are trying to train a network from scratch, the functionality are very limited and the speed of the network is slightly reduced.<br>
+
+#### Training loop examples
+Training loop with stream buffer
 ```python
 def train_iter(model, optimz, data_load, n_clips = 5, n_clip_frames=8):
     """
+    In causal mode with stream buffer a single video is fed to the network
+    using subclips of lenght n_clip_frames. 
+    n_clips*n_clip_frames should be equal to the total number of frames presents
+    in the video.
+    
     n_clips : number of clips that are used
     n_clip_frames : number of frame contained in each clip
     """
+    
+    #clean the buffer of activations
+    model.clean_activation_buffers()
     optimz.zero_grad()
     for i, data, target in enumerate(data_load):
         #backward pass for each clip
@@ -52,6 +72,19 @@ def train_iter(model, optimz, data_load, n_clips = 5, n_clip_frames=8):
         #clean the buffer of activations
         model.clean_activation_buffers()
 ```
+Training loop with standard convolutions
+```python
+def train_iter(model, optimz, data_load):
+
+    optimz.zero_grad()
+    for i, (data,_ , target) in enumerate(data_load):
+        out = F.log_softmax(model(data), dim=1)
+        loss = F.nll_loss(out, target)
+        loss.backward()
+        optimz.step()
+        optimz.zero_grad()
+```
+
 ## Pretrained models
 #### Weights
 The weights are loaded from the tensorflow models released by the authors, trained on kinetics.
@@ -84,14 +117,6 @@ Currently are available the pretrained models for the following architectures:
 - [ ] MoViNetA4-STREAM
 - [x] MoViNetA5-BASE
 - [ ] MoViNetA5-STREAM
-
-#### Load weights
-tf_like indicated that the model will behave like a tensorflow model in some restricted scenarios. <br>
-tf_like is necessary in order to obtain models that work with tensorflow weights released by the autors. <br>
-tf_like behaviour should not be used when you are trying to train a network from scratch, the functionality are very limited and the speed of the network is slightly reduced.<br>
-```python
-MoViNetA2 = MoViNet(_C.MODEL.MoViNetA2, 600, causal = False, pretrained = True, tf_like = True )
-```
 
 ### Citations
 ```bibtex
