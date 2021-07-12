@@ -119,7 +119,7 @@ Currently are available the pretrained models for the following architectures:
 
 ### Testing
 I recommend to create a new environment for testing and run the following command to install all the required packages: <br>
-    ```pip install -r tests/requirements.txt```
+    ```pip install -r tests/test_requirements.txt```
     
 ### Citations
 ```bibtex
