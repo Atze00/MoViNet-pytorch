@@ -118,7 +118,7 @@ Currently are available the pretrained models for the following architectures:
 - [ ] MoViNetA5-STREAM
 
 ### Testing
-I reccomend to create a new environment for testing and run the following command to install all the required packages: <br>
+I recommend to create a new environment for testing and run the following command to install all the required packages: <br>
     ```pip install -r tests/requirements.txt```
     
 ### Citations
