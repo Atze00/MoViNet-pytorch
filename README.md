@@ -117,6 +117,10 @@ Currently are available the pretrained models for the following architectures:
 - [x] MoViNetA5-BASE
 - [ ] MoViNetA5-STREAM
 
+### Testing
+I reccomend to create a new environment for testing and run the following command to install all the required packages: <br>
+    ```pip install -r tests/requirements.txt```
+    
 ### Citations
 ```bibtex
 @article{kondratyuk2021movinets,
@@ -126,3 +130,4 @@ Currently are available the pretrained models for the following architectures:
   year={2021}
 }
 ```
+
