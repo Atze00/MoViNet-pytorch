@@ -13,7 +13,7 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url='https://github.com/Atze00/MoViNet-pytorch',
     license='MIT',
-    packages=find_packages(exclude=["tests"]),
+    packages=setuptools.find_packages(exclude=["tests"]),
     install_requires=['torch',
                       'fvcore',
                      ],
