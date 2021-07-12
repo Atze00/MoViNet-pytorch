@@ -1,6 +1,4 @@
-import sys
-sys.path.append('.')
-from models import tfAvgPool3D,Conv3DBNActivation
+from movinets.models import tfAvgPool3D,Conv3DBNActivation
 import tensorflow as tf
 import torch
 from torch import nn

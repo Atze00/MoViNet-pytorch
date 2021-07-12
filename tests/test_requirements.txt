@@ -1,0 +1,6 @@
+fvcore>=0.1.5.post20210630
+torch>=1.7.0
+git+https://github.com/Atze00/MoViNet-pytorch.git@createpackage
+tensorflow
+einops
+tensorflow-hub

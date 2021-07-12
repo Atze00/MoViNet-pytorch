@@ -1,8 +1,7 @@
 import sys
 import unittest
-sys.path.append('.')
-from models import MoViNet
-from config import _C
+from movinets import MoViNet
+from movinets.config import _C
 from io import BytesIO
 import tensorflow as tf
 import numpy as np
