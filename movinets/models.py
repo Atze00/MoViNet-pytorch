@@ -60,11 +60,13 @@ class TemporalCGAvgPool3D(CausalModule):
         if self.activation is None:
             self.activation = cumulative_sum[:,:,-1:].clone()#TODO check this
         else:
+            cumulative_sum += self.activation
             self.activation += cumulative_sum[:,:,-1:]
         divisor = torch.range(1, input_shape[2])[None,None,:, None,None].expand(x.shape)
 
         x = cumulative_sum/(self.T+divisor)
         self.T += input_shape[2]
+        print(self.T, self.activation)
         return x
 
     @staticmethod
@@ -163,10 +165,7 @@ class CausalConv3D(CausalModule):
     def forward(self, x: Tensor) -> Tensor:
         device = x.device
         if self.dim_pad >0 and self.conv_2 is None:
-            if self.activation is None:
-                self._setup_activation(x.shape)
-            x = torch.cat((self.activation.to(device), x), 2)
-            self._save_in_activation(x)
+            x = self._cat_stream_buffer(x, device)
         shape_with_buffer = x.shape
         if self.conv_type == "2plus1d":
             x = rearrange(x, "b c t h w -> (b t) c h w") 
@@ -174,14 +173,19 @@ class CausalConv3D(CausalModule):
         if self.conv_type == "2plus1d":
             x = rearrange(x, "(b t) c h w -> b c t h w", t = shape_with_buffer[2])
             if self.dim_pad >0:
-                if self.activation is None:
-                    self._setup_activation(x.shape)
-                x = torch.cat((self.activation.to(device), x), 2)
-                self._save_in_activation(x)
+                x = self._cat_stream_buffer(x, device)
+
             if self.conv_2 is not None:
                 x = rearrange(x,"b c t h w -> b c t (h w)") 
                 x = self.conv_2(x)
                 x = rearrange(x,"b c t (h w) -> b c t h w", h = int(x.shape[3]**(0.5))) #TODO this can cause problems
+        return x
+
+    def _cat_stream_buffer(self, x: Tensor, device ) -> Tensor:#TODO add typing
+        if self.activation is None:
+            self._setup_activation(x.shape)
+        x = torch.cat((self.activation.to(device), x), 2)
+        self._save_in_activation(x)
         return x
 
     def _save_in_activation(self, x: Tensor) -> Tensor:
@@ -535,7 +539,7 @@ class MoViNet(nn.Module):
     def avg(self, x):
         if self.causal:
             avg = F.adaptive_avg_pool3d(x, (x.shape[2], 1, 1))
-            avg = self.cgap(avg)
+            avg = self.cgap(avg)[:,:,-1:]
         else:
             avg = F.adaptive_avg_pool3d(x, 1)
         return avg
