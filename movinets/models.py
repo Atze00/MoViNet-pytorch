@@ -8,10 +8,13 @@ import torch
 from torch.nn.modules.utils import _triple, _pair
 import torch.nn.functional as F
 from typing import Any, Callable, Optional, Tuple, Union
+from einops import rearrange
 from torch import nn, Tensor
 
 class HardSigmoid(torch.autograd.Function):
     #https://linuxtut.com/en/3e7495014f85eb6103fc/
+    
+    #TODO Legacy autograd function with non-static forward method is deprecated. Please use new-style autograd function with static forward method
     @staticmethod
     def forward(ctx, i):
          ctx.save_for_backward(i)
@@ -25,6 +28,7 @@ class HardSigmoid(torch.autograd.Function):
          grad_input *= 0.2
          grad_input[result < -2.5] = 0
          grad_input[result > -2.5] = 0
+         return grad_input
 
 
 class swish(nn.Module):
@@ -51,15 +55,16 @@ class TemporalCGAvgPool3D(CausalModule):
         self.register_forward_hook(self._detach_activation)
 
     def forward(self, x: Tensor) -> Tensor:
-        cumulative_sum = torch.cumsum(x, dim=2, keepdim=True)
+        input_shape = x.shape
+        cumulative_sum = torch.cumsum(x, dim=2)
         if self.activation is None:
-            self.activation = cumulative_sum[:,:,-1:]
+            self.activation = cumulative_sum[:,:,-1:].clone()#TODO check this
         else:
             self.activation += cumulative_sum[:,:,-1:]
-        divisor = torch.range(1, scale.shape[2])[None,None,:, None,None].expand(x.shape)
+        divisor = torch.range(1, input_shape[2])[None,None,:, None,None].expand(x.shape)
 
         x = cumulative_sum/(self.T+divisor)
-        self.T += x.shape[2]
+        self.T += input_shape[2]
         return x
 
     @staticmethod
@@ -78,38 +83,37 @@ class Conv2dBNActivation(nn.Sequential):
                  in_planes: int,
                  out_planes: int,
                  *,
-                 causal: bool,
                  kernel_size: Union[int, Tuple[int, int]],
                  padding: Union[int, Tuple[int, int]],
                  stride: Union[int, Tuple[int, int]] = 1,
                  groups: int = 1,
                  norm_layer: Optional[Callable[..., nn.Module]] = None,
                  activation_layer: Optional[Callable[..., nn.Module]] = None,
+                 **kwargs: Any,
                  ) -> None:
         kernel_size = _pair(kernel_size)#change to duple
         stride = _pair(stride)
         padding = _pair(padding)
         convolution = nn.Conv2d
-        if norm_layer is None:#change this behaviour, norm can't bee an activation specific
+        if norm_layer is None:#TODO change this behaviour, norm can't bee an activation specific
             norm_layer = nn.BatchNorm2d
         if activation_layer is None:
             activation_layer = swish
         self.kernel_size = kernel_size
         self.stride = stride
-        self.conv_type = conv_type
         dict_layers = OrderedDict({
                             "conv2d": convolution(in_planes, out_planes,
                                                   kernel_size=kernel_size,
                                                   stride=stride,
                                                   padding=padding,
                                                   groups=groups,
-                                                  bias=False),
+                                                  **kwargs),
                             "norm": norm_layer(out_planes, eps=0.001),
                             "act": activation_layer()
                             })
 
         self.out_channels = out_planes
-        super(Conv2DBNActivation, self).__init__(dict_layers)
+        super(Conv2dBNActivation, self).__init__(dict_layers)
 
  
 
@@ -121,7 +125,8 @@ class CausalConv3D(CausalModule):
             kernel_size: Union[int, Tuple[int, int, int]],
             padding: Union[int, Tuple[int, int]],
             conv_type,
-            **kwargs: Any,
+            stride,#TODO typing
+            **kwargs: Any,#TODO probably wrong typing
             ) -> None:
         super().__init__()
         kernel_size = _triple(kernel_size)
@@ -135,41 +140,52 @@ class CausalConv3D(CausalModule):
         if conv_type == "2plus1d":
             self.conv_1 = Conv2dBNActivation(in_planes,
                                   out_planes,
-                                  (kernel_size[1],kernel_size[2]),
+                                  kernel_size = (kernel_size[1],kernel_size[2]),
                                   padding=(padding[1],padding[2]),
                                   stride=(stride[1],stride[2]),
                                   **kwargs)
             if kernel_size[0]>1:
                 self.conv_2 = Conv2dBNActivation(in_planes,
                                           out_planes,
-                                          (kernel_size[0],1),
+                                          kernel_size = (kernel_size[0],1),
                                           padding=(padding[0],0),
-                                          #TODO add stride?
+                                          stride=(stride[0],1),#TODO check all this stride and paddings
                                           **kwargs)
         else:
             self.conv_1 = nn.Conv3d(in_planes,
                                   out_planes,
                                   kernel_size,
                                   padding=padding,
+                                  stride=stride
                                   **kwargs)
 
 
     def forward(self, x: Tensor) -> Tensor:
         device = x.device
-        if self.dim_pad >0:
+        if self.dim_pad >0 and self.conv_2 is None:
             if self.activation is None:
                 self._setup_activation(x.shape)
             x = torch.cat((self.activation.to(device), x), 2)
             self._save_in_activation(x)
+        shape_with_buffer = x.shape
         if self.conv_type == "2plus1d":
             x = rearrange(x, "b c t h w -> (b t) c h w") 
+        print(torch.mean(x))
         x = self.conv_1(x)
+        print(torch.mean(x))
         if self.conv_type == "2plus1d":
-            x = rearrange(x, "(b t) c h w -> b t c h w", t = input_shape[2])
+            x = rearrange(x, "(b t) c h w -> b c t h w", t = shape_with_buffer[2])
+            if self.dim_pad >0:
+                if self.activation is None:
+                    self._setup_activation(x.shape)
+                x = torch.cat((self.activation.to(device), x), 2)
+                self._save_in_activation(x)
             if self.conv_2 is not None:
-                x = rearrange(x,"b t c t h w -> b c t (h w)") 
+                x = rearrange(x,"b c t h w -> b c t (h w)") 
+                print(torch.mean(x),"s")
                 x = self.conv_2(x)
-                x = rearrange(x,"b c t (h w) -> b c t h w", h = input_shape[3] ) 
+                print(torch.mean(x),"s")
+                x = rearrange(x,"b c t (h w) -> b c t h w", h = int(x.shape[3]**(0.5))) #TODO this can cause problems
         return x
 
     def _save_in_activation(self, x: Tensor) -> Tensor:
@@ -185,31 +201,32 @@ class CausalConv3D(CausalModule):
 
 class SqueezeExcitation(nn.Module):
 
-    def __init__(self, input_channels: int, causal = False, 
-            activation_1 = swish(), activation_2 = torch.sigmoid,se_type= "3d" ,squeeze_factor: int = 4):
+    def __init__(self, input_channels: int,activation_2,  causal = False, 
+            activation_1 = swish(),se_type= "3d" ,squeeze_factor: int = 4):
         super().__init__()
         self.se_type = se_type
-        self.causal = causal
-        se_multiplier = 2 if se_type == "2plus3d" else 1
-        se_in_multiplier = 2 if se_type == "2plus3d" else 1
+        self.causal = causal#TODO this is somethign that we need to fix with 2plus3d
+        se_multiplier = 2 if se_type == "2plus1d" else 1
+        se_in_multiplier = 2 if se_type == "2plus1d" else 1
+        print(se_multiplier)
         squeeze_channels = _make_divisible(input_channels//squeeze_factor*se_multiplier, 8)
+        self.temporal_cumualtive_GAvg3D = TemporalCGAvgPool3D()
         self.fc1 = nn.Conv3d(input_channels*se_in_multiplier, squeeze_channels, (1, 1, 1))
         self.activation_1 = activation_1
         self.activation_2 = activation_2
         self.fc2 = nn.Conv3d(squeeze_channels, input_channels, (1, 1, 1))
-        temporal_cumualtive_GAvg3D = TemporalCGAvgPool3D()
 
     def _scale(self, input: Tensor) -> Tensor:
         if self.causal:
             x_space = torch.mean(input, dim = [3,4],keepdim = True)
-            scale = temporal_cumualtive_GAvg3D(x_space)
+            scale = self.temporal_cumualtive_GAvg3D(x_space)
             scale = torch.cat((scale,x_space),dim = 1)
         else:
             scale = F.adaptive_avg_pool3d(input, 1)
         scale = self.fc1(scale)
         scale = self.activation_1(scale)
         scale = self.fc2(scale)
-        return self.activation_2(scale)
+        return self.activation_2.apply(scale)
 
     def forward(self, input: Tensor) -> Tensor:
         scale = self._scale(input)
@@ -294,9 +311,9 @@ class Conv3DBNActivation(nn.Sequential):
                  tf_like: bool,
                  kernel_size: Union[int, Tuple[int, int, int]],
                  padding: Union[int, Tuple[int, int, int]],
+                 conv_type: str,#TODO check correnctness
                  stride: Union[int, Tuple[int, int, int]] = 1,
                  groups: int = 1,
-                 conv_type: str = "3d",#TODO check correnctness
                  norm_layer: Optional[Callable[..., nn.Module]] = None,
                  activation_layer: Optional[Callable[..., nn.Module]] = None,
                  ) -> None:
@@ -318,14 +335,14 @@ class Conv3DBNActivation(nn.Sequential):
         else:
             convolution = nn.Conv3d
         if norm_layer is None:
-            norm_layer = nn.BatchNorm3d
+            norm_layer = nn.Identity 
         if activation_layer is None:
-            activation_layer = swish
+            activation_layer = nn.Identity 
         self.kernel_size = kernel_size
         self.stride = stride
         self.conv_type = conv_type
         if conv_type == "3d":
-            dict_layers = OrderedDict({
+            dict_layers = OrderedDict({#TODO this cannot be causal and 3d at the same time
                                 "conv3d": convolution(in_planes, out_planes,
                                                       kernel_size=kernel_size,
                                                       stride=stride,
@@ -343,9 +360,9 @@ class Conv3DBNActivation(nn.Sequential):
                                                       padding=padding,
                                                       groups=groups,
                                                       conv_type = conv_type,
+                                                      activation_layer = activation_layer ,
+                                                      norm_layer = norm_layer, 
                                                       bias=False),
-                                "norm": norm_layer(out_planes, eps=0.001),
-                                "act": activation_layer()
                                 })
 
 
@@ -359,9 +376,9 @@ class Conv3DBNActivation(nn.Sequential):
                              self.kernel_size[-2], self.kernel_size[-1])
         return super().forward(x)
 
-
+#TODO check all typings
 class BasicBneck(nn.Module):
-    def __init__(self, cfg: "CfgNode", causal: bool, tf_like: bool, conv_type = "3d") -> None:
+    def __init__(self, cfg: "CfgNode", causal: bool, tf_like: bool, conv_type ) -> None:
         super().__init__()
         assert type(cfg.stride) is tuple
         if not cfg.stride[0] == 1 or not (1 <= cfg.stride[1] <= 2) or not (1 <= cfg.stride[2] <= 2):
@@ -375,11 +392,11 @@ class BasicBneck(nn.Module):
                 out_planes=cfg.expanded_channels,
                 kernel_size=(1, 1, 1),
                 padding=(0, 0, 0),
-                norm_layer=cfg.norm_layer,
-                activation_layer=cfg.activation_layer,
                 causal=causal,
                 conv_type=conv_type,
-                tf_like=tf_like
+                tf_like=tf_like,
+                norm_layer=nn.BatchNorm3d if conv_type == "3d" else nn.BatchNorm2d,
+                activation_layer=swish if conv_type == "3d" else nn.Hardswish
                 )
         # deepwise
         self.deep = Conv3DBNActivation(
@@ -388,16 +405,16 @@ class BasicBneck(nn.Module):
             kernel_size=cfg.kernel_size,
             padding=cfg.padding,
             stride=cfg.stride,
-            norm_layer=cfg.norm_layer,
             groups=cfg.expanded_channels,
-            activation_layer=cfg.activation_layer,
             causal=causal,
             conv_type=conv_type,
-            tf_like=tf_like
+            tf_like=tf_like,
+            norm_layer=nn.BatchNorm3d if conv_type == "3d" else nn.BatchNorm2d,
+            activation_layer=swish if conv_type == "3d" else nn.Hardswish
             )
         # SE
         self.se = SqueezeExcitation(cfg.expanded_channels, 
-                causal = causal, activation_1 = swish() if conv_type == "3d" else HardSwish(),
+                causal = causal, activation_1 = swish() if conv_type == "3d" else nn.Hardswish(),
                 activation_2 = torch.sigmoid if conv_type == "3d" else HardSigmoid(), 
                 se_type = conv_type
                 )
@@ -407,11 +424,11 @@ class BasicBneck(nn.Module):
             cfg.out_channels,
             kernel_size=(1, 1, 1),
             padding=(0, 0, 0),
-            norm_layer=cfg.norm_layer,
-            activation_layer=nn.Identity,
             causal=causal,
             conv_type=conv_type,
-            tf_like=tf_like
+            tf_like=tf_like,
+            norm_layer=nn.BatchNorm3d if conv_type == "3d" else nn.BatchNorm2d,
+            activation_layer=nn.Identity
             )
 
         if not (cfg.stride == (1, 1, 1) and cfg.input_channels == cfg.out_channels):
@@ -428,9 +445,10 @@ class BasicBneck(nn.Module):
                     out_planes=cfg.out_channels,
                     kernel_size=(1, 1, 1),
                     padding=(0, 0, 0),
-                    norm_layer=cfg.norm_layer,
+                    norm_layer=nn.BatchNorm3d if conv_type == "3d" else nn.BatchNorm2d,
                     activation_layer=nn.Identity,
                     causal=causal,
+                    conv_type=conv_type,
                     tf_like=tf_like
                     ))
             self.res = nn.Sequential(*layers)
@@ -462,7 +480,10 @@ class MoViNet(nn.Module):
         if pretrained:
             assert causal is False, "weights are only available for non causal models"
             assert tf_like, "pretained model available only with tf_like behavior"
-
+        if causal is True:
+            conv_type = "2plus1d"
+        else:
+            conv_type = "3d"
         blocks_dic = OrderedDict()
         # conv1
         self.conv1 = Conv3DBNActivation(
@@ -470,17 +491,19 @@ class MoViNet(nn.Module):
             out_planes=cfg.conv1.out_channels,
             kernel_size=cfg.conv1.kernel_size,
             stride=cfg.conv1.stride,
-            norm_layer=cfg.conv1.norm_layer,
             padding=cfg.conv1.padding,
-            activation_layer=cfg.conv1.activation_layer,
             causal=causal,
-            tf_like=tf_like
+            conv_type=conv_type,
+            tf_like=tf_like,
+            norm_layer=nn.BatchNorm3d if conv_type == "3d" else nn.BatchNorm2d,
+            activation_layer=swish if conv_type == "3d" else nn.Hardswish
             )
         # blocks
         for i, block in enumerate(cfg.blocks):
             for j, basicblock in enumerate(block):
                 blocks_dic[f"b{i}_l{j}"] = BasicBneck(basicblock,
                                                       causal=causal,
+                                                      conv_type=conv_type,
                                                       tf_like=tf_like)
         self.blocks = nn.Sequential(blocks_dic)
         # conv7
@@ -490,16 +513,17 @@ class MoViNet(nn.Module):
             kernel_size=cfg.conv7.kernel_size,
             stride=cfg.conv7.stride,
             padding=cfg.conv7.padding,
-            norm_layer=cfg.conv7.norm_layer,
-            activation_layer=cfg.conv7.activation_layer,
             causal=causal,
-            tf_like=tf_like
+            conv_type=conv_type,
+            tf_like=tf_like,
+            norm_layer=nn.BatchNorm3d if conv_type == "3d" else nn.BatchNorm2d,
+            activation_layer=swish if conv_type == "3d" else nn.Hardswish
             )
         # pool
         self.classifier = nn.Sequential(
             # dense9
             nn.Conv3d(cfg.conv7.out_channels,  cfg.dense9.hidden_dim, (1, 1, 1)),
-            swish(),
+            swish(),#TODO
             nn.Dropout(p=0.2, inplace=True),
             # dense10
             nn.Conv3d(cfg.dense9.hidden_dim,  num_classes, (1, 1, 1)),
