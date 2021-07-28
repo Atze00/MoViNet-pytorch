@@ -170,9 +170,7 @@ class CausalConv3D(CausalModule):
         shape_with_buffer = x.shape
         if self.conv_type == "2plus1d":
             x = rearrange(x, "b c t h w -> (b t) c h w") 
-        print(torch.mean(x))
         x = self.conv_1(x)
-        print(torch.mean(x))
         if self.conv_type == "2plus1d":
             x = rearrange(x, "(b t) c h w -> b c t h w", t = shape_with_buffer[2])
             if self.dim_pad >0:
@@ -182,9 +180,7 @@ class CausalConv3D(CausalModule):
                 self._save_in_activation(x)
             if self.conv_2 is not None:
                 x = rearrange(x,"b c t h w -> b c t (h w)") 
-                print(torch.mean(x),"s")
                 x = self.conv_2(x)
-                print(torch.mean(x),"s")
                 x = rearrange(x,"b c t (h w) -> b c t h w", h = int(x.shape[3]**(0.5))) #TODO this can cause problems
         return x
 
@@ -208,7 +204,6 @@ class SqueezeExcitation(nn.Module):
         self.causal = causal#TODO this is somethign that we need to fix with 2plus3d
         se_multiplier = 2 if se_type == "2plus1d" else 1
         se_in_multiplier = 2 if se_type == "2plus1d" else 1
-        print(se_multiplier)
         squeeze_channels = _make_divisible(input_channels//squeeze_factor*se_multiplier, 8)
         self.temporal_cumualtive_GAvg3D = TemporalCGAvgPool3D()
         self.fc1 = nn.Conv3d(input_channels*se_in_multiplier, squeeze_channels, (1, 1, 1))
@@ -226,7 +221,7 @@ class SqueezeExcitation(nn.Module):
         scale = self.fc1(scale)
         scale = self.activation_1(scale)
         scale = self.fc2(scale)
-        return self.activation_2.apply(scale)
+        return self.activation_2(scale)
 
     def forward(self, input: Tensor) -> Tensor:
         scale = self._scale(input)
@@ -415,7 +410,7 @@ class BasicBneck(nn.Module):
         # SE
         self.se = SqueezeExcitation(cfg.expanded_channels, 
                 causal = causal, activation_1 = swish() if conv_type == "3d" else nn.Hardswish(),
-                activation_2 = torch.sigmoid if conv_type == "3d" else HardSigmoid(), 
+                activation_2 = torch.sigmoid if conv_type == "3d" else HardSigmoid().apply, 
                 se_type = conv_type
                 )
         # project
