@@ -40,8 +40,8 @@ class TestPretrainedModels(unittest.TestCase):
             with urllib.request.urlopen(image_url) as f:
                 image = Image.open(BytesIO(f.read())).resize((image_height, image_width))
             video = tf.reshape(np.array(image), [1, 1, image_height, image_width, 3])
-            video = tf.broadcast_to(video, [1, 2, image_height, image_width, 3])
             video = tf.cast(video, tf.float32) / 255.
+            video = tf.concat([video, video/2], axis=1)
             video_2 = rearrange(torch.from_numpy(video.numpy()), "b t h w c-> b c t h w")
             encoder = hub.KerasLayer(
             f"https://tfhub.dev/tensorflow/movinet/a{i}/base/kinetics-600/classification/2")
