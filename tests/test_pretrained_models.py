@@ -43,7 +43,7 @@ class TestPretrainedModels(unittest.TestCase):
             video = tf.concat([video, video/2], axis=1)
             video_2 = rearrange(torch.from_numpy(video.numpy()), "b t h w c-> b c t h w")
             encoder = hub.KerasLayer(
-            f"https://tfhub.dev/tensorflow/movinet/a{i}/base/kinetics-600/classification/2")
+            f"https://tfhub.dev/tensorflow/movinet/a{i}/base/kinetics-600/classification/3")
 
             # Important: due to a bug in the tf.nn.conv3d CPU implementation, we must
             # compile with tf.function to enforce correct behavior. Otherwise, the output
@@ -57,7 +57,7 @@ class TestPretrainedModels(unittest.TestCase):
             output_tf = model_tf(video)
             del model_tf
 
-            model = MoViNet(movinets[i], 600,causal = False, pretrained = True, tf_like = True )
+            model = MoViNet(movinets[i],causal = False, pretrained = True )
             model.eval();
             with torch.no_grad():
                 model.clean_activation_buffers()
@@ -135,8 +135,7 @@ class TestPretrainedModels(unittest.TestCase):
 
             del model_tf
 
-            model = MoViNet(movinets[i], 600,causal = True, pretrained = False, tf_like = True )
-            model.load_state_dict(torch.load(f"./weights/modelA{i}_stream_statedict_v3"))
+            model = MoViNet(movinets[i], causal = True, pretrained = True)
             model.eval();
             with torch.no_grad():
                 model.clean_activation_buffers()
