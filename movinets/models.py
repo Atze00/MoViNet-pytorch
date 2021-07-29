@@ -54,7 +54,7 @@ class CausalModule(nn.Module):
 class TemporalCGAvgPool3D(CausalModule):
     def __init__(self,):
         super().__init__()
-        self.T = 0
+        self.n_cumulated_values = 0
         self.register_forward_hook(self._detach_activation)
 
     def forward(self, x: Tensor) -> Tensor:
@@ -65,21 +65,21 @@ class TemporalCGAvgPool3D(CausalModule):
         else:
             cumulative_sum += self.activation
             self.activation += cumulative_sum[:,:,-1:]
-        divisor = torch.range(1, input_shape[2])[None,None,:, None,None].expand(x.shape)
+        divisor = torch.arange(1, input_shape[2]+1)[None,None,:, None,None].expand(x.shape)
 
-        x = cumulative_sum/(self.T+divisor)
-        self.T += input_shape[2]
+        x = cumulative_sum/(self.n_cumulated_values +divisor)
+        self.n_cumulated_values += input_shape[2]
         return x
 
     @staticmethod
-    def _detach_activation(module: nn.Module,
+    def _detach_activation(module: CausalModule,
                            input: Tensor,
                            output: Tensor) -> None:
         module.activation.detach_()
 
     def reset_activation(self) -> None:
         super().reset_activation()
-        self.T = 0
+        self.n_cumulated_values = 0
 
 class Conv2dBNActivation(nn.Sequential):
     def __init__(
@@ -98,7 +98,7 @@ class Conv2dBNActivation(nn.Sequential):
         kernel_size = _pair(kernel_size)#change to duple
         stride = _pair(stride)
         padding = _pair(padding)
-        if norm_layer is None:#TODO change this behaviour, norm can't bee an activation specific
+        if norm_layer is None:
             norm_layer = nn.Identity 
         if activation_layer is None:
             activation_layer = nn.Identity 
@@ -143,7 +143,7 @@ class Conv3DBNActivation(nn.Sequential):
         self.kernel_size = kernel_size
         self.stride = stride
 
-        dict_layers = OrderedDict({#TODO this cannot be causal and 3d at the same time
+        dict_layers = OrderedDict({
                                 "conv3d": nn.Conv3d(in_planes, out_planes,
                                                       kernel_size=kernel_size,
                                                       stride=stride,
@@ -157,7 +157,6 @@ class Conv3DBNActivation(nn.Sequential):
         self.out_channels = out_planes
         super(Conv3DBNActivation, self).__init__(dict_layers)
 
-#TODO change self.T to another name in temporal
 #TODO maybe check kwargs, you can maybe pass more items that you don't process through kwargs save only things that are useful to 
 #save on the class
 
@@ -168,10 +167,10 @@ class ConvBlock3D(CausalModule):
             out_planes: int,
             *,
             kernel_size: Union[int, Tuple[int, int, int]],
-            padding: Union[int, Tuple[int, int]],
             tf_like: bool,
             causal: bool,
             conv_type,
+            padding: Union[int, Tuple[int, int, int]] = 0,
             stride: Union[int, Tuple[int, int, int]] = 1,#TODO typing
             norm_layer: Optional[Callable[..., nn.Module]] = None,
             activation_layer: Optional[Callable[..., nn.Module]] = None,
@@ -194,7 +193,7 @@ class ConvBlock3D(CausalModule):
                 raise ValueError('tf_like supports only stride <= of the kernel size')
 
         if causal is True:
-            padding = (0, padding[1], padding[2])#TODO change this
+            padding = (0, padding[1], padding[2])
         if conv_type != "2plus1d" and conv_type != "3d":
             raise ValueError("only 2plus2d or 3d are allowed as 3d convolutions")
         
@@ -205,24 +204,24 @@ class ConvBlock3D(CausalModule):
                                   kernel_size = (kernel_size[1],kernel_size[2]),
                                   padding=(padding[1],padding[2]),
                                   stride=(stride[1],stride[2]),
-                                  bias = bias,#TODO add activation_layer here and norm_layer
                                   activation_layer = activation_layer ,
                                   norm_layer = norm_layer,
+                                  bias = bias,
                                   **kwargs)
-            if kernel_size[0]>1:#TODO check deepwise for both or not
+            if kernel_size[0]>1:
                 self.conv_2 = Conv2dBNActivation(in_planes,
                                           out_planes,
                                           kernel_size = (kernel_size[0],1),
                                           padding=(padding[0],0),
-                                          stride=(stride[0],1),#TODO check all this stride and paddings
+                                          stride=(stride[0],1),
                                           activation_layer = activation_layer ,
                                           norm_layer = norm_layer,
                                           bias = bias,
                                           **kwargs)
         elif conv_type == "3d":
-            self.conv_1 = Conv3dBNActivation(in_planes,
+            self.conv_1 = Conv3DBNActivation(in_planes, #type: ignore
                                   out_planes,
-                                  kernel_size,
+                                  kernel_size=kernel_size,
                                   padding=padding,
                                   stride=stride,
                                   bias = bias,
@@ -237,33 +236,23 @@ class ConvBlock3D(CausalModule):
 
     def _forward(self, x: Tensor) -> Tensor:
         device = x.device
-        print(self.padding)
-        print(x.shape, "b",self.kernel_size)
-        print(self.dim_pad,self.conv_2,self.conv_1, self.causal)
         if self.dim_pad >0 and self.conv_2 is None and self.causal is True:
             x = self._cat_stream_buffer(x, device)
-        print(x.shape, "c")
         shape_with_buffer = x.shape
         if self.conv_type == "2plus1d":
             x = rearrange(x, "b c t h w -> (b t) c h w") 
         x = self.conv_1(x)
-        print(x.shape, "e")
         if self.conv_type == "2plus1d":
             x = rearrange(x, "(b t) c h w -> b c t h w", t = shape_with_buffer[2])
-            print(x.shape, "e")
 
-            print(x.shape, "e")
             if self.conv_2 is not None:
                 if self.dim_pad >0 and self.causal is True:
                     x = self._cat_stream_buffer(x, device)
+                w = x.shape[-1]
                 x = rearrange(x,"b c t h w -> b c t (h w)") 
                 x = self.conv_2(x)
-                print(x.shape, "e")
-                x = rearrange(x,"b c t (h w) -> b c t h w", h = int(x.shape[3]**(0.5))) #TODO this can cause problems
-        print(x.shape, "e")
+                x = rearrange(x,"b c t (h w) -> b c t h w", w = w)
         return x
-
-#TODO change range with arange or something
 
     def forward(self, x: Tensor) -> Tensor:
         if self.tf_like:
@@ -280,32 +269,32 @@ class ConvBlock3D(CausalModule):
         self._save_in_activation(x)
         return x
 
-    def _save_in_activation(self, x: Tensor) -> Tensor:
+    def _save_in_activation(self, x: Tensor) -> None:
         assert self.dim_pad > 0
         self.activation = x[:, :, -self.dim_pad:, ...].clone().detach()
 
     def _setup_activation(self, input_shape: Tuple[float, ...]) -> None:
         assert self.dim_pad > 0
-        self.activation = torch.zeros(*input_shape[:2],
+        self.activation = torch.zeros(*input_shape[:2], #type: ignore
                                       self.dim_pad,
                                       *input_shape[3:])
-
+#TODO add requirements
+#TODO create a train sample, just so that we can test the training
 
 class SqueezeExcitation(nn.Module):
 
-    def __init__(self, input_channels: int,activation_2,  causal = False, 
-            activation_1 = swish(),se_type= "3d" ,squeeze_factor: int = 4):
+    def __init__(self, input_channels: int,activation_2,
+            activation_1,conv_type ,se_type,causal, squeeze_factor: int = 4,bias = True):
         super().__init__()
         self.se_type = se_type
-        self.causal = causal#TODO this is somethign that we need to fix with 2plus3d
+        self.causal = causal
         se_multiplier = 2 if se_type == "2plus1d" else 1
-        se_in_multiplier = 2 if se_type == "2plus1d" else 1
         squeeze_channels = _make_divisible(input_channels//squeeze_factor*se_multiplier, 8)
         self.temporal_cumualtive_GAvg3D = TemporalCGAvgPool3D()
-        self.fc1 = nn.Conv3d(input_channels*se_in_multiplier, squeeze_channels, (1, 1, 1))
+        self.fc1 = ConvBlock3D(input_channels*se_multiplier, squeeze_channels, kernel_size = (1, 1, 1), padding = 0, tf_like = False, causal = causal, conv_type = conv_type,bias = bias)
         self.activation_1 = activation_1
         self.activation_2 = activation_2
-        self.fc2 = nn.Conv3d(squeeze_channels, input_channels, (1, 1, 1))
+        self.fc2 = ConvBlock3D(squeeze_channels, input_channels, kernel_size = (1, 1, 1), padding = 0, tf_like = False, causal = causal, conv_type = conv_type, bias = bias)
 
     def _scale(self, input: Tensor) -> Tensor:
         if self.causal:
@@ -433,7 +422,8 @@ class BasicBneck(nn.Module):
         self.se = SqueezeExcitation(cfg.expanded_channels, 
                 causal = causal, activation_1 = swish() if conv_type == "3d" else nn.Hardswish(),
                 activation_2 = torch.sigmoid if conv_type == "3d" else hardsigmoid, 
-                se_type = conv_type
+                se_type = conv_type,
+                conv_type = conv_type
                 )
         # project
         self.project = ConvBlock3D(
@@ -451,7 +441,6 @@ class BasicBneck(nn.Module):
         if not (cfg.stride == (1, 1, 1) and cfg.input_channels == cfg.out_channels):
             if cfg.stride != (1, 1, 1):
                 if tf_like:
-
                     layers.append(tfAvgPool3D())
                 else:
                     layers.append(nn.AvgPool3d((1, 3, 3),
@@ -545,11 +534,12 @@ class MoViNet(nn.Module):
         # pool
         self.classifier = nn.Sequential(
             # dense9
-            nn.Conv3d(cfg.conv7.out_channels,  cfg.dense9.hidden_dim, (1, 1, 1)),
-            swish(),#TODO
+            ConvBlock3D(cfg.conv7.out_channels,  cfg.dense9.hidden_dim, kernel_size = (1, 1, 1), tf_like = tf_like, causal= causal,conv_type = conv_type, bias = True),
+            swish(),
             nn.Dropout(p=0.2, inplace=True),
-            # dense10
-            nn.Conv3d(cfg.dense9.hidden_dim,  num_classes, (1, 1, 1)),
+            # dense10d
+            ConvBlock3D(cfg.dense9.hidden_dim,  num_classes, kernel_size =(1, 1, 1),tf_like = tf_like, causal= causal,conv_type = conv_type, bias = True),
+            
         )
         if causal:
             self.cgap = TemporalCGAvgPool3D()
@@ -569,7 +559,7 @@ class MoViNet(nn.Module):
         return avg
 
     @staticmethod
-    def _weight_init(m):
+    def _weight_init(m):#TODO check this
         if isinstance(m, nn.Conv3d):
             nn.init.kaiming_normal_(m.weight, mode='fan_out')
             if m.bias is not None:
