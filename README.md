@@ -31,14 +31,17 @@ MoViNetA1 = MoViNet(_C.MODEL.MoViNetA1, number_classes, causal = True)
 ...
 ```
 ##### Load weights
-Use ```pretrained = True``` to use the model with pretrained weights, ```tf_like = True``` is also required.<br>
-
-tf_like indicated that the model will behave like a tensorflow model in some restricted scenarios. <br>
-tf_like is necessary in order to obtain models that work with tensorflow weights released by the autors. <br>
-tf_like behaviour should not be used when you are trying to train a network from scratch, the functionalities are very limited and the speed of the network is slightly reduced.<br>
+Use ```pretrained = True``` to use the model with pretrained weights<br>
 
 ```python
-MoViNetA2 = MoViNet(_C.MODEL.MoViNetA2, 600, causal = False, pretrained = True, tf_like = True )
+    """
+    If pretrained is True:
+        num_classes is set to 600,
+        conv_type is set to "3d" if causal is False, "2plus1d" if causal is True
+        tf_like is set to True
+    """
+model = MoViNet(_C.MODEL.MoViNetA0, causal = True, pretrained = True )
+model = MoViNet(_C.MODEL.MoViNetA0, causal = False, pretrained = True )
 ```
 
 
@@ -101,21 +104,35 @@ Base models implement standard 3D convolutions without stream buffers.
 | MoViNet-A4-Base | 83.48 | 96.16 | 80 x 290 x 290 | 
 | MoViNet-A5-Base | 84.27 | 96.39 | 120 x 320 x 320 | 
 
+
+| Model Name | Top-1 Accuracy* | Top-5 Accuracy* | Input Shape\*\* |
+|------------|----------------|----------------|---------------|
+| MoViNet-A0-Stream | 72.05 | 90.63 | 50 x 172 x 172 | 
+| MoViNet-A1-Stream | 76.45 | 93.25 | 50 x 172 x 172 |
+| MoViNet-A2-Stream | 78.40 | 94.05 | 50 x 224 x 224 |
+
+
+\*\*In streaming mode, the number of frames correspond to the total accumulated
+duration of the 10-second clip.
+
 *Accuracy reported on the official repository for the dataset kinetics 600, It has not been tested by me. It should be the same since the tf models and the reimplemented pytorch models output the same results [[Test]](https://github.com/Atze00/MoViNet-pytorch/blob/main/tests/test_pretrained_models.py).
 
+I currently haven't tested the speed of the streaming models, feel free to test and contribute.
 
 #### Status
 Currently are available the pretrained models for the following architectures:
 - [x] MoViNetA1-BASE
-- [ ] MoViNetA1-STREAM
+- [x] MoViNetA1-STREAM
 - [x] MoViNetA2-BASE
-- [ ] MoViNetA2-STREAM
+- [x] MoViNetA2-STREAM
 - [x] MoViNetA3-BASE
 - [ ] MoViNetA3-STREAM
 - [x] MoViNetA4-BASE
 - [ ] MoViNetA4-STREAM
 - [x] MoViNetA5-BASE
 - [ ] MoViNetA5-STREAM
+
+I currently have no plans to include streaming version of A3,A4,A5. Those models are too slow for most mobile applications.
 
 ### Testing
 I recommend to create a new environment for testing and run the following command to install all the required packages: <br>
