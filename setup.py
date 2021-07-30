@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name='MoViNet-pytorch',
-    version='0.1.0',
+    version='0.2.0',
     author='Lorenzo Atzeni',
     author_email='loryatze@gmail.com',
     description='MoViNet pytorch implementation',
@@ -16,5 +16,6 @@ setuptools.setup(
     packages=setuptools.find_packages(exclude=['tests']),
     install_requires=['torch',
                       'fvcore',
+                      'einops'
                      ],
 )
