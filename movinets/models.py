@@ -52,9 +52,9 @@ class TemporalCGAvgPool3D(CausalModule):
         else:
             cumulative_sum += self.activation
             self.activation += cumulative_sum[:, :, -1:]
-        divisor = (torch.arange(1, input_shape[2]+1)[None, None, :, None, None]
+        divisor = (torch.arange(1, input_shape[2]+1,
+                   device=device)[None, None, :, None, None]
                    .expand(x.shape))
-
         x = cumulative_sum / (self.n_cumulated_values + divisor)
         self.n_cumulated_values += input_shape[2]
         return x
@@ -525,11 +525,16 @@ class MoViNet(nn.Module):
                  ) -> None:
         super().__init__()
         """
+        causal: causal mode
+        pretrained: pretrained models
         If pretrained is True:
             num_classes is set to 600,
             conv_type is set to "3d" if causal is False,
                 "2plus1d" if causal is True
             tf_like is set to True
+        num_classes: number of classes for classifcation
+        conv_type: type of convolution either 3d or 2plus1d
+        tf_like: tf_like behaviour, basically same padding for convolutions
         """
         if pretrained:
             tf_like = True

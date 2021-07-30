@@ -140,7 +140,11 @@ class TestPretrainedModels(unittest.TestCase):
             with torch.no_grad():
                 model.clean_activation_buffers()
                 output = model(video_2)
+                model.clean_activation_buffers()
+                _ = model(video_2[:,:,:1])
+                output_2 = model(video_2[:,:,1:2])
             del model
+            self.assertTrue(np.allclose(output.detach().numpy(),output_2.numpy(),rtol=1e-06,atol=1e-4,))
             self.assertTrue(np.allclose(output.detach().numpy(),output_tf.numpy(),rtol=1e-06,atol=1e-4,))
             
 if __name__ == '__main__':
