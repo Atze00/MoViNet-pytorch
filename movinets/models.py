@@ -46,6 +46,7 @@ class TemporalCGAvgPool3D(CausalModule):
 
     def forward(self, x: Tensor) -> Tensor:
         input_shape = x.shape
+        device = x.device
         cumulative_sum = torch.cumsum(x, dim=2)
         if self.activation is None:
             self.activation = cumulative_sum[:, :, -1:].clone()
