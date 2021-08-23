@@ -24,10 +24,8 @@ Use ```causal = True``` to use the model with stream buffer, causal = False will
 from movinets import MoViNet
 from movinets.config import _C
 
-number_classes = 600
-
-MoViNetA0 = MoViNet(_C.MODEL.MoViNetA0, number_classes, causal = True)
-MoViNetA1 = MoViNet(_C.MODEL.MoViNetA1, number_classes, causal = True)
+MoViNetA0 = MoViNet(_C.MODEL.MoViNetA0, causal = True, pretrained = True )
+MoViNetA1 = MoViNet(_C.MODEL.MoViNetA1, causal = True, pretrained = True )
 ...
 ```
 ##### Load weights
