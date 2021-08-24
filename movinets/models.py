@@ -288,14 +288,12 @@ class SqueezeExcitation(nn.Module):
                  activation_2: nn.Module,
                  activation_1: nn.Module,
                  conv_type: str,
-                 se_type: str,
                  causal: bool,
                  squeeze_factor: int = 4,
                  bias: bool = True) -> None:
         super().__init__()
-        self.se_type = se_type
         self.causal = causal
-        se_multiplier = 2 if se_type == "2plus3d" else 1
+        se_multiplier = 2 if causal else 1
         squeeze_channels = _make_divisible(input_channels
                                            // squeeze_factor
                                            * se_multiplier, 8)
@@ -458,8 +456,6 @@ class BasicBneck(nn.Module):
                                     activation_2=(nn.Sigmoid
                                                   if conv_type == "3d"
                                                   else Hardsigmoid),
-                                    se_type=("3d" if conv_type == "3d"
-                                             else "2plus3d"),
                                     conv_type=conv_type
                                     )
         # project
