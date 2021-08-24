@@ -1,4 +1,4 @@
-from movinets.models import tfAvgPool3D,Conv3DBNActivation
+from movinets.models import tfAvgPool3D,ConvBlock3D
 import tensorflow as tf
 import torch
 from torch import nn
@@ -44,8 +44,9 @@ class TestTfConv3D(unittest.TestCase):
                                     for u in range(1,8):
                                         for b in range(1,8):
                                             try:
-                                                torch_conv = Conv3DBNActivation(2,2, causal = False, tf_like = True, kernel_size = kernel_size,
+                                                torch_conv = ConvBlock3D(2,2, causal = False, tf_like = True, kernel_size = kernel_size,
                                                                       padding = padding, stride = stride,
+                                                                      conv_type = "3d",
                                                                       norm_layer = nn.Identity, activation_layer = nn.Identity)
                                             except ValueError:
                                                 continue
@@ -59,7 +60,7 @@ class TestTfConv3D(unittest.TestCase):
                                             w = tf_conv.weights[0]
                                             w = rearrange(w, "d h w c_in c_out -> c_out c_in d h w")
                                             w = torch.tensor(w.numpy())
-                                            torch_conv.load_state_dict({"conv3d.weight":w}, strict=True)
+                                            torch_conv.load_state_dict({"conv_1.conv3d.weight":w}, strict=True)
 
                                             b = rearrange(torch.from_numpy(a.numpy()), "b t h w c-> b c t h w")
                                             output = torch_conv(b)
