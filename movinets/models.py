@@ -52,7 +52,7 @@ class TemporalCGAvgPool3D(CausalModule):
             self.activation = cumulative_sum[:, :, -1:].clone()
         else:
             cumulative_sum += self.activation
-            self.activation += cumulative_sum[:, :, -1:]
+            self.activation = cumulative_sum[:, :, -1:].clone()
         divisor = (torch.arange(1, input_shape[2]+1,
                    device=device)[None, None, :, None, None]
                    .expand(x.shape))

@@ -86,7 +86,7 @@ class TestPretrainedModels(unittest.TestCase):
                 image = Image.open(BytesIO(f.read())).resize((image_height, image_width))
             video = tf.reshape(np.array(image), [1, 1, image_height, image_width, 3])
             video = tf.cast(video, tf.float32) / 255.
-            video = tf.concat([video, video/2], axis=1)
+            video = tf.concat([video, video/2, video/3], axis=1)
             video_2 = rearrange(torch.from_numpy(video.numpy()), "b t h w c-> b c t h w")
             encoder = hub.KerasLayer(
             f"https://tfhub.dev/tensorflow/movinet/a{i}/stream/kinetics-600/classification/3")
@@ -142,7 +142,8 @@ class TestPretrainedModels(unittest.TestCase):
                 output = model(video_2)
                 model.clean_activation_buffers()
                 _ = model(video_2[:,:,:1])
-                output_2 = model(video_2[:,:,1:2])
+                _ = model(video_2[:,:,1:2])
+                output_2 = model(video_2[:,:,2:3])
             del model
             self.assertTrue(np.allclose(output.detach().numpy(),output_2.numpy(),rtol=1e-06,atol=1e-4,))
             self.assertTrue(np.allclose(output.detach().numpy(),output_tf.numpy(),rtol=1e-06,atol=1e-4,))
