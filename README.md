@@ -140,7 +140,7 @@ I recommend to create a new environment for testing and run the following comman
 ```bibtex
 @article{kondratyuk2021movinets,
   title={MoViNets: Mobile Video Networks for Efficient Video Recognition},
-  author={Dan Kondratyuk, Liangzhe Yuan, Yandong Li, Li Zhang, Matthew Brown, and Boqing Gong},
+  author={Dan Kondratyuk, Liangzhe Yuan, Yandong Li, Li Zhang, Mingxing Tan, Matthew Brown, and Boqing Gong},
   journal={arXiv preprint arXiv:2103.11511},
   year={2021}
 }
