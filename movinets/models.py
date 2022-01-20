@@ -297,7 +297,7 @@ class SqueezeExcitation(nn.Module):
         squeeze_channels = _make_divisible(input_channels
                                            // squeeze_factor
                                            * se_multiplier, 8)
-        self.temporal_cumualtive_GAvg3D = TemporalCGAvgPool3D()
+        self.temporal_cumulative_GAvg3D = TemporalCGAvgPool3D()
         self.fc1 = ConvBlock3D(input_channels*se_multiplier,
                                squeeze_channels,
                                kernel_size=(1, 1, 1),
@@ -320,7 +320,7 @@ class SqueezeExcitation(nn.Module):
     def _scale(self, input: Tensor) -> Tensor:
         if self.causal:
             x_space = torch.mean(input, dim=[3, 4], keepdim=True)
-            scale = self.temporal_cumualtive_GAvg3D(x_space)
+            scale = self.temporal_cumulative_GAvg3D(x_space)
             scale = torch.cat((scale, x_space), dim=1)
         else:
             scale = F.adaptive_avg_pool3d(input, 1)
